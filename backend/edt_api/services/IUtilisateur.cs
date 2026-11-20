@@ -18,6 +18,7 @@ public interface IUtilisateur
     Task<EnseignantDto> addAsync(CreateEnseignantDto dto);
     Task<bool> importEnseignant(List<CreateEnseignantDto> enseignants);
     Task<EnseignantDto> registerAsync(RegisterEnseignantDto dto);
+    Task<bool> checkEmailResponsable(string email);
     Task<bool> updateAsync(string id, UpdateResponsableDto dto);
     Task<bool> updateTeacherAsync(string id, UpdateEnseignantDto dto);
     Task<bool> deleteAsync(string id);

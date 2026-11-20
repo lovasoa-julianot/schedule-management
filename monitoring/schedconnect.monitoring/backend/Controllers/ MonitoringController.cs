@@ -37,7 +37,8 @@ public class MonitoringController : ControllerBase
             UnhealthyTargets = overview.UnhealthyTargets,
             ErrorRate = overview.ErrorRate,
             AverageResponseTime = overview.AverageResponseTime,
-            Timestamp = overview.Timestamp
+            Timestamp = overview.Timestamp,
+            Services = overview.Services
         };
 
         return Ok(dto);

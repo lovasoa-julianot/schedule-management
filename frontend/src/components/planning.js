@@ -3,26 +3,21 @@ import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay } from "date-fns";
 import fr from "date-fns/locale/fr";
-import React, { use, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Select from "react-select";
 import {
   FaCheckCircle,
   FaClock,
-  FaFileExcel,
   FaFileExport,
   FaPlayCircle,
   FaRegClock,
-  FaTimes,
   FaTimesCircle,
 } from "react-icons/fa";
 import PlanningForm from "./forms/planning-form";
-import { MdPrint } from "react-icons/md";
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 import "../assets/calendar.css";
 
-import * as XLSX from "xlsx";
-import AlertInfo from "./notification/alert";
 import ErrorDialog from "./notification/error";
 import Confirm from "./notification/confirm";
 import api from "../hooks/api";
@@ -131,7 +126,6 @@ const Planning = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [week, setWeek] = useState(null);
 
   function generateHoraire(start = "07:00", end = "18:00", step = 30) {
     const result = [];
@@ -153,9 +147,7 @@ const Planning = () => {
     return result;
   }
 
-  const [horaire, setHoraire] = useState(() =>
-    generateHoraire("07:00", "18:00", 30),
-  );
+  const [horaire] = useState(() => generateHoraire("07:00", "18:00", 30));
 
   const [filteredHoraire, setFilteredHoarire] = useState([]);
 
@@ -177,11 +169,8 @@ const Planning = () => {
     return { monday, sunday };
   };
 
-  const today = new Date(selectedDate);
+  const today = new Date(selectedDate || currentDate);
   const { monday, sunday } = getCurrentWeek(today);
-
-  const start = monday.toISOString().split("T")[0];
-  const end = sunday.toISOString().split("T")[0];
 
   const loadAll = () => {
     api
@@ -195,6 +184,7 @@ const Planning = () => {
       .get("/mention")
       .then((res) => {
         setMentions(res.data);
+        setFilteredMent(res.data);
       })
       .catch((err) => console.error("Erreur de chargement:", err));
 
@@ -202,6 +192,7 @@ const Planning = () => {
       .get("/niveau")
       .then((res) => {
         setNiveaux(res.data);
+        setFilteredNiv(res.data);
       })
       .catch((err) => console.error("Erreur de chargement:", err));
 
@@ -216,20 +207,19 @@ const Planning = () => {
       .get("/matiere")
       .then((res) => {
         setMatieres(res.data);
+        setFilteredMat(res.data);
       })
       .catch((err) => console.error("Erreur de chargement:", err));
   };
 
-  const loadDispo = (selectedDate) => {
-    const today = getCurrentWeek(selectedDate);
-    const week = `${today.monday.getDate()}-${today.sunday.getDate()}_${today.monday.getMonth() + 1}_${today.monday.getFullYear()}`;
-    // console.log("Semaine: ", week);
+  const loadDispo = (targetDate) => {
+    const weekRange = getCurrentWeek(targetDate);
+    const weekStr = `${weekRange.monday.getDate()}-${weekRange.sunday.getDate()}_${weekRange.monday.getMonth() + 1}_${weekRange.monday.getFullYear()}`;
 
     api
-      .get(`/disponibilite/all?week=${week}`)
+      .get(`/disponibilite/all?week=${weekStr}`)
       .then((res) => {
         if (res.data.length === 0) {
-          console.log("Aucune disponibilité trouvée pour la semaine actuelle.");
           return;
         }
         setDisponibilite(res.data);
@@ -240,12 +230,10 @@ const Planning = () => {
   useEffect(() => {
     if (selectedDate === null) {
       loadDispo(currentDate);
-      // console.log("Date: ", currentDate);
     } else {
       loadDispo(selectedDate);
-      // console.log("Date: ", currentDate);
     }
-  }, [selectedDate]);
+  }, [selectedDate, currentDate]);
 
   const loadSchedule = () => {
     api
@@ -272,15 +260,12 @@ const Planning = () => {
         );
       })
       .catch((err) =>
-        console.error("Erreur de chargement:", err.response.data),
+        console.error("Erreur de chargement:", err.response?.data || err),
       );
   };
 
   useEffect(() => {
     loadAll();
-  }, []);
-
-  useEffect(() => {
     loadSchedule();
   }, []);
 
@@ -289,15 +274,15 @@ const Planning = () => {
   }, [events]);
 
   const handleSelectSlot = (slotInfo) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const todayDate = new Date();
+    todayDate.setHours(0, 0, 0, 0);
 
     const slotDate = new Date(slotInfo.start);
     slotDate.setHours(0, 0, 0, 0);
 
     setSelectedDate(slotInfo.start);
 
-    if (slotDate < today) {
+    if (slotDate < todayDate) {
       Swal.fire({
         title: "Date invalide",
         text: "Impossible de créer un événement à une date déjà passée.",
@@ -307,7 +292,7 @@ const Planning = () => {
       return;
     }
 
-    const currentWeekStart = moment(today).startOf("week");
+    const currentWeekStart = moment(todayDate).startOf("week");
     const slotWeekStart = moment(slotDate).startOf("week");
 
     if (slotWeekStart.isBefore(currentWeekStart)) {
@@ -317,9 +302,15 @@ const Planning = () => {
         icon: "error",
         confirmButtonText: "OK",
       });
-
       return;
     }
+
+    // Réinitialisation des filtres et du formulaire pour une création propre
+    setFilteredMent(mentions);
+    setFilteredNiv(niveaux);
+    setFilteredMat(matieres);
+    setFilteredHoarire(horaire);
+
     setFormData({
       numEd: "",
       jour: "",
@@ -347,10 +338,10 @@ const Planning = () => {
       const month = String(date.getMonth() + 1).padStart(2, "0");
       const day = String(date.getDate()).padStart(2, "0");
 
-      setFormData({
-        ...formData,
+      setFormData((prev) => ({
+        ...prev,
         jour: `${year}-${month}-${day}`,
-      });
+      }));
     }
   }, [selectedDate]);
 
@@ -365,18 +356,9 @@ const Planning = () => {
   }));
 
   const typeOptions = [
-    {
-      label: "Semestriel",
-      value: "Semestriel",
-    },
-    {
-      label: "Partiel",
-      value: "Partiel",
-    },
-    {
-      label: "Hebdomadaire",
-      value: "Hebdomadaire",
-    },
+    { label: "Semestriel", value: "Semestriel" },
+    { label: "Partiel", value: "Partiel" },
+    { label: "Hebdomadaire", value: "Hebdomadaire" },
   ];
 
   const [selectedMention, setSelectedMention] = useState(null);
@@ -397,7 +379,6 @@ const Planning = () => {
     if (mentionOptions.length > 0 && !selectedMention) {
       setSelectedMention(mentionOptions[0]);
     }
-
     if (niveauOptions.length > 0 && !selectedNiveau) {
       setSelectedNiveau(niveauOptions[0]);
     }
@@ -405,9 +386,9 @@ const Planning = () => {
 
   useEffect(() => {
     if (selectedMention && selectedNiveau) {
-      filtrerData(selectedMention, selectedNiveau);
+      filtrerData(selectedMention, selectedNiveau, selectedType);
     }
-  }, [selectedMention, selectedNiveau]);
+  }, [selectedMention, selectedNiveau, selectedType]);
 
   const handleMentionChange = (mention) => {
     setSelectedMention(mention ?? mentionOptions[0]);
@@ -417,14 +398,14 @@ const Planning = () => {
     setSelectedNiveau(niveau ?? niveauOptions[0]);
   };
 
-  const handleTypeChanged = (selectedType) => {
-    setSelectedType(selectedType);
-    filtrerData(selectedMention, selectedNiveau, selectedType);
+  const handleTypeChanged = (type) => {
+    setSelectedType(type);
+    filtrerData(selectedMention, selectedNiveau, type);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const week = `${new Date(monday.toLocaleDateString()).getDate()}-${new Date(sunday.toLocaleDateString()).getDate()}_${new Date(sunday.toLocaleDateString()).getMonth() + 1}_${new Date(sunday.toLocaleDateString()).getFullYear()}`;
+    const weekStr = `${monday.getDate()}-${sunday.getDate()}_${monday.getMonth() + 1}_${monday.getFullYear()}`;
 
     const data = {
       ...formData,
@@ -435,29 +416,14 @@ const Planning = () => {
       jour: formData.jour,
       hDeb: `${formData.hDeb}:00`,
       hFin: `${formData.hFin}:00`,
-      semaine: `${week}`,
+      semaine: weekStr,
     };
 
     api
       .post("/edt", data)
-      .then((rep) => {
+      .then(() => {
         loadSchedule();
-        setFormData({
-          numEd: "",
-          jour: "",
-          hDeb: "",
-          hFin: "",
-          dispo: "En cours",
-          type: "",
-          responsableId: userId,
-          enseignantId: "",
-          mentionId: "",
-          niveauId: "",
-          idSalle: "",
-          matiereId: "",
-          semaine: "",
-          anneeId: "",
-        });
+        setShowForm(false);
         Swal.fire({
           title: "Succès",
           text: "Programme ajouté avec succès!",
@@ -466,24 +432,14 @@ const Planning = () => {
         });
       })
       .catch((err) => {
-        if (err.response && err.response.data) {
-          const serverMessage = err.response.data.message;
-          Swal.fire({
-            title: "Avertissement",
-            text: `Impossible d'ajouter le cours :\n${serverMessage}`,
-            icon: "warning",
-            confirmButtonText: "OK",
-          });
-        } else {
-          Swal.fire({
-            title: "Erreur",
-            text: `Une erreur réseau est survenue.`,
-            icon: "error",
-            confirmButtonText: "OK",
-          });
-        }
+        const serverMessage = err.response?.data?.message;
+        Swal.fire({
+          title: "Avertissement",
+          text: `Impossible d'ajouter le cours :\n${serverMessage || "Erreur inconnue"}`,
+          icon: "warning",
+          confirmButtonText: "OK",
+        });
       });
-    setShowForm(false);
   };
 
   const [showError, setshowError] = useState(false);
@@ -493,7 +449,6 @@ const Planning = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-
     let newValue = value;
 
     if (name === "enseignantId") {
@@ -509,16 +464,16 @@ const Planning = () => {
         setFilteredDispo(dispoEns);
 
         const dispoDuJour = dispoEns.filter(
-          (d) => formatDate(d.dateDispo) === formatDate(selectedDate),
+          (d) =>
+            formatDate(d.dateDispo) === formatDate(selectedDate || currentDate),
         );
 
         if (dispoDuJour.length === 0) {
           setFilteredHoarire([]);
-          setShowForm(false);
           Swal.fire({
             title: "Information",
-            text: "Désolé, enseignant non disponible. Veuillez choisir un autre s'il vous plait!",
-            icon: "information",
+            text: "Désolé, enseignant non disponible ce jour. Veuillez en choisir un autre !",
+            icon: "info",
             confirmButtonText: "OK",
           });
           return;
@@ -530,14 +485,13 @@ const Planning = () => {
         };
 
         let hours = [];
-
         dispoDuJour.forEach(({ hDeb, hFin }) => {
-          const start = toMinutes(hDeb);
-          const end = toMinutes(hFin);
+          const startMin = toMinutes(hDeb);
+          const endMin = toMinutes(hFin);
 
           const h = horaire.filter((ho) => {
             const t = toMinutes(ho.heure);
-            return t >= start && t <= end;
+            return t >= startMin && t <= endMin;
           });
 
           hours = [...hours, ...h];
@@ -546,32 +500,24 @@ const Planning = () => {
         const uniqueHours = [
           ...new Map(hours.map((h) => [h.heure, h])).values(),
         ];
-
         setFilteredHoarire(uniqueHours);
-        setShowForm(true);
-        setshowError(false);
       }
 
-      const ens = ensignants.filter((ens) =>
-        ens.id.toString().includes(value.toString()),
+      const ens = ensignants.filter((item) =>
+        item.id.toString().includes(value.toString()),
       );
-
       setFilteredEns(ens);
 
       if (ens.length > 0) {
-        const selectedFullName = `${ens[0].nom} ${ens[0].prenom}`
-          .toLowerCase()
-          .trim();
-        const selectedFullNameAlt = `${ens[0].prenom} ${ens[0].nom}`
-          .toLowerCase()
-          .trim();
+        const fullName1 = `${ens[0].nom} ${ens[0].prenom}`.toLowerCase().trim();
+        const fullName2 = `${ens[0].prenom} ${ens[0].nom}`.toLowerCase().trim();
 
-        const mat = matieres.filter((mat) => {
-          return mat.enseignants.some((e) => {
+        const mat = matieres.filter((matItem) => {
+          return matItem.enseignants?.some((e) => {
             const ensNameInMat = e.toLowerCase().trim();
             return (
-              ensNameInMat.includes(selectedFullName) ||
-              ensNameInMat.includes(selectedFullNameAlt)
+              ensNameInMat.includes(fullName1) ||
+              ensNameInMat.includes(fullName2)
             );
           });
         });
@@ -587,12 +533,12 @@ const Planning = () => {
 
       if (selectedMat) {
         const ment = mentions.filter((mnt) =>
-          selectedMat.mentionId.includes(mnt.idMent),
+          selectedMat.mentionId?.includes(mnt.idMent),
         );
         setFilteredMent(ment);
 
         const niv = niveaux.filter((nv) =>
-          selectedMat.niveauId.includes(nv.idNiv),
+          selectedMat.niveauId?.includes(nv.idNiv),
         );
         setFilteredNiv(niv);
       } else {
@@ -607,128 +553,11 @@ const Planning = () => {
     }));
   };
 
-  const loadHorairesByEnseignant = (enseignantId) => {
-    const selectedEns = ensignants.find(
-      (ens) => ens.id.toString() === enseignantId.toString(),
-    );
-    if (!selectedEns) return;
-
-    const dispoEns = disponibilite.filter((d) =>
-      selectedEns.nom.includes(d.nomEns),
-    );
-
-    setFilteredDispo(dispoEns);
-
-    const dispoDuJour = dispoEns.filter(
-      (d) => formatDate(d.dateDispo) === formatDate(selectedDate),
-    );
-
-    if (dispoDuJour.length === 0) {
-      setFilteredHoarire([]);
-      setShowForm(false);
-      Swal.fire({
-        title: "Information",
-        text: "Enseignant non disponible ce jour",
-        icon: "info",
-      });
-      return;
-    }
-
-    const toMinutes = (time) => {
-      const [hh, mm] = time.split(":").map(Number);
-      return hh * 60 + mm;
-    };
-
-    let hours = [];
-    dispoDuJour.forEach(({ hDeb, hFin }) => {
-      const start = toMinutes(hDeb);
-      const end = toMinutes(hFin);
-
-      const h = horaire.filter((ho) => {
-        const t = toMinutes(ho.heure);
-        return t >= start && t <= end;
-      });
-
-      hours = [...hours, ...h];
-    });
-
-    const uniqueHours = [...new Map(hours.map((h) => [h.heure, h])).values()];
-
-    setFilteredHoarire(uniqueHours);
-    setShowForm(true);
-  };
-
-  const loadMatieresByEnseignant = (enseignantId) => {
-    const ens = ensignants.find(
-      (e) => e.id.toString() === enseignantId.toString(),
-    );
-    if (!ens) return;
-
-    const fullName1 = `${ens.nom} ${ens.prenom}`.toLowerCase().trim();
-    const fullName2 = `${ens.prenom} ${ens.nom}`.toLowerCase().trim();
-
-    const mat = matieres.filter((mat) =>
-      mat.enseignants.some((e) => {
-        const name = e.toLowerCase().trim();
-        return name.includes(fullName1) || name.includes(fullName2);
-      }),
-    );
-
-    setFilteredMat(mat);
-  };
-
-  const loadMentionNiveauByMatiere = (matiereId) => {
-    const selectedMat = matieres.find(
-      (mat) => mat.id.toString() === matiereId.toString(),
-    );
-    if (!selectedMat) return;
-
-    setFilteredMent(
-      mentions.filter((mnt) => selectedMat.mentionId.includes(mnt.idMent)),
-    );
-
-    setFilteredNiv(
-      niveaux.filter((nv) => selectedMat.niveauId.includes(nv.idNiv)),
-    );
-  };
-
-  // const handleChange = (e) => {
-  //   const { name, value } = e.target;
-
-  //   setFormData((prev) => ({
-  //     ...prev,
-  //     [name]: value,
-  //   }));
-
-  //   if (name === "enseignantId") {
-  //     loadHorairesByEnseignant(value);
-  //     loadMatieresByEnseignant(value);
-  //   }
-
-  //   if (name === "matiereId") {
-  //     loadMentionNiveauByMatiere(value);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   if (modalMode === "edit" && formData?.enseignantId) {
-  //     loadHorairesByEnseignant(formData.enseignantId);
-  //     loadMatieresByEnseignant(formData.enseignantId);
-  //   }
-  // }, [modalMode, formData?.enseignantId]);
-
-  // useEffect(() => {
-  //   if (modalMode === "edit" && formData?.matiereId) {
-  //     loadMentionNiveauByMatiere(formData.matiereId);
-  //   }
-  // }, [modalMode, formData?.matiereId]);
-
   const formatDate = (date) => {
     const d = new Date(date);
     const year = d.getFullYear();
     const month = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
-
     return `${year}-${month}-${day}`;
   };
 
@@ -739,7 +568,7 @@ const Planning = () => {
 
   const handleDelete = () => {
     api
-      .delete(`/user/teacher/${deleteId}`)
+      .delete(`/edt/${deleteId}`)
       .then(() => {
         loadSchedule();
         Swal.fire({
@@ -750,15 +579,15 @@ const Planning = () => {
         });
       })
       .catch((err) => {
-        console.error("Erreur: ", err.message);
+        console.error("Erreur de suppression: ", err.message);
       })
       .finally(() => {
         setConfirmDelete(false);
       });
   };
 
-  const handleExportMulti = (selectedMentions, selectedNiveaux) => {
-    const { monday, sunday } = getCurrentWeek(currentDate);
+  const handleExportMulti = (selectedMentionsList, selectedNiveauxList) => {
+    const weekRange = getCurrentWeek(currentDate);
 
     const doc = new jsPDF({
       orientation: "landscape",
@@ -785,7 +614,7 @@ const Planning = () => {
       return { cols: 3, rows: 3 };
     };
 
-    selectedNiveaux.forEach((niveau, niveauIndex) => {
+    selectedNiveauxList.forEach((niveau, niveauIndex) => {
       if (niveauIndex > 0) doc.addPage();
 
       doc.setFontSize(14);
@@ -795,19 +624,19 @@ const Planning = () => {
       doc.setFontSize(10);
       doc.setTextColor(0, 0, 0);
       doc.text(
-        `Semaine du ${monday.toLocaleDateString("fr-FR")} au ${sunday.toLocaleDateString("fr-FR")}`,
+        `Semaine du ${weekRange.monday.toLocaleDateString("fr-FR")} au ${weekRange.sunday.toLocaleDateString("fr-FR")}`,
         marginX,
         18,
       );
 
-      const { cols, rows } = getGrid(selectedMentions.length);
+      const { cols, rows } = getGrid(selectedMentionsList.length);
       const cellWidth = usableWidth / cols;
       const cellHeight = usableHeight / rows;
 
       const colWidths = [0.12, 0.18, 0.28, 0.22, 0.2];
       const lineHeight = 8;
 
-      selectedMentions.forEach((mention, index) => {
+      selectedMentionsList.forEach((mention, index) => {
         const colIndex = index % cols;
         const rowIndex = Math.floor(index / cols);
 
@@ -841,25 +670,25 @@ const Planning = () => {
         doc.setFont("helvetica", "normal");
         let currentY = startY + 8 + headerHeight + 4;
 
-        const startOfWeek = new Date(monday);
-        startOfWeek.setHours(0, 0, 0, 0);
-        const endOfWeek = new Date(sunday);
-        endOfWeek.setHours(23, 59, 59, 999);
+        const startOfWeekDate = new Date(weekRange.monday);
+        startOfWeekDate.setHours(0, 0, 0, 0);
+        const endOfWeekDate = new Date(weekRange.sunday);
+        endOfWeekDate.setHours(23, 59, 59, 999);
 
-        const filteredEvents = events.filter((e) => {
+        const eventsFiltered = events.filter((e) => {
           const d = new Date(e.start);
           return (
             e.mention === mention.value &&
             e.niveau === niveau.value &&
-            d >= startOfWeek &&
-            d <= endOfWeek
+            d >= startOfWeekDate &&
+            d <= endOfWeekDate
           );
         });
 
-        filteredEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
+        eventsFiltered.sort((a, b) => new Date(a.start) - new Date(b.start));
 
         const eventsByDay = {};
-        filteredEvents.forEach((e) => {
+        eventsFiltered.forEach((e) => {
           const dayKey = new Date(e.start).toISOString().split("T")[0];
           if (!eventsByDay[dayKey]) eventsByDay[dayKey] = [];
           eventsByDay[dayKey].push(e);
@@ -867,7 +696,7 @@ const Planning = () => {
 
         let toggle = false;
 
-        if (filteredEvents.length === 0) {
+        if (eventsFiltered.length === 0) {
           doc.setTextColor(128, 0, 0);
           doc.text("Aucun cours", startX + cellWidth / 2, currentY + 2, {
             align: "center",
@@ -882,7 +711,7 @@ const Planning = () => {
             dayEvents.forEach((e) => {
               if (currentY > startY + cellHeight - 5) return;
 
-              doc.setFillColor(toggle ? (230, 240, 250) : (255, 255, 255));
+              doc.setFillColor(toggle ? [230, 240, 250] : [255, 255, 255]);
               doc.rect(startX, currentY - 3, cellWidth, lineHeight, "F");
               toggle = !toggle;
 
@@ -923,7 +752,7 @@ const Planning = () => {
     });
 
     doc.save(
-      `Emploi_du_temps_de_la_semaine_${monday.toLocaleDateString("fr-FR")}-${sunday.toLocaleDateString("fr-FR")}.pdf`,
+      `Emploi_du_temps_${weekRange.monday.toLocaleDateString("fr-FR")}-${weekRange.sunday.toLocaleDateString("fr-FR")}.pdf`,
     );
   };
 
@@ -940,18 +769,12 @@ const Planning = () => {
       });
   }, []);
 
-  const statusIcon = {
-    "En cours": FaClock,
-    Annulé: FaTimesCircle,
-    Terminé: FaCheckCircle,
-  };
-
   return (
     <div>
       {showError && (
         <ErrorDialog
           error={
-            "Desole, enseignant non disponible.Veuillez choisir un autre enseignant"
+            "Désolé, enseignant non disponible. Veuillez choisir un autre enseignant"
           }
           setshowError={setshowError}
         />
@@ -970,12 +793,12 @@ const Planning = () => {
             Agenda - Planning des cours
           </h2>
           <p className="text-sm text-gray-500">
-            Selectionner une date pour ajouter un programme
+            Sélectionner une date pour ajouter un programme
           </p>
         </div>
         <div className="flex items-center ml-auto justify-end gap-2 z-5">
           <Select
-            className="w-48 "
+            className="w-48"
             options={typeOptions}
             placeholder="Type"
             value={selectedType}
@@ -983,7 +806,7 @@ const Planning = () => {
             isClearable
           />
           <Select
-            className="w-48 "
+            className="w-48"
             options={mentionOptions}
             placeholder="Mention"
             value={selectedMention}
@@ -991,7 +814,7 @@ const Planning = () => {
             isClearable
           />
           <Select
-            className="w-48 "
+            className="w-48"
             options={niveauOptions}
             placeholder="Niveau"
             value={selectedNiveau}
@@ -1107,6 +930,7 @@ const Planning = () => {
         }}
       />
 
+      {/* Formulaire de création */}
       {can(userRole === "Admin" ? "admin" : "secretary", "addPlanning") &&
         showForm &&
         selectedDate && (
@@ -1126,31 +950,29 @@ const Planning = () => {
           />
         )}
 
+      {/* Modale d'interaction sur un événement existant */}
       {can(userRole === "Admin" ? "admin" : "secretary", "addPlanning") &&
         showModal &&
         selectedEvent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-lg p-6 w-[420px]">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md border border-slate-100">
               {modalMode === "" && (
                 <>
-                  <h2 className="text-lg font-bold mb-1">
+                  <h2 className="text-xl font-bold text-slate-900 mb-1">
                     {selectedEvent.title}
                   </h2>
-
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-slate-500 mb-6">
                     {selectedEvent.prenomEns} – Salle {selectedEvent.salle}
                   </p>
 
-                  <div className="flex justify-end gap-3">
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                     <button
                       onClick={() => setShowModal(false)}
-                      className="px-4 py-2 bg-gray-300 rounded"
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
                     >
                       Fermer
                     </button>
-
                     <button
-                      // onClick={() => setModalMode("edit")}
                       onClick={() => {
                         Swal.fire({
                           title: "Fonctionnalité indisponible",
@@ -1159,14 +981,13 @@ const Planning = () => {
                           confirmButtonText: "OK",
                         });
                       }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded"
+                      className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm transition-all"
                     >
                       Modifier
                     </button>
-
                     <button
                       onClick={() => setModalMode("confirm")}
-                      className="px-4 py-2 bg-red-600 text-white rounded"
+                      className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all"
                     >
                       Supprimer
                     </button>
@@ -1176,108 +997,32 @@ const Planning = () => {
 
               {modalMode === "confirm" && (
                 <>
-                  <h2 className="text-lg font-bold text-red-600 mb-4">
+                  <h2 className="text-lg font-bold text-red-600 mb-2">
                     Confirmation de suppression
                   </h2>
-
-                  <p className="mb-4">
-                    Supprimer la séance du{" "}
+                  <p className="text-sm text-slate-600 mb-6">
+                    Êtes-vous sûr de vouloir supprimer la séance du{" "}
                     {selectedEvent.start.toLocaleDateString("fr-FR")} ?
                   </p>
 
-                  <div className="flex justify-end gap-3">
+                  <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                     <button
                       onClick={() => setModalMode("")}
-                      className="px-4 py-2 bg-gray-300 rounded"
+                      className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
                     >
                       Retour
                     </button>
-
                     <button
                       onClick={() => {
                         askDelete(selectedEvent.numEd);
                         setShowModal(false);
                       }}
-                      className="px-4 py-2 bg-red-600 text-white rounded"
+                      className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-all"
                     >
                       Confirmer
                     </button>
                   </div>
                 </>
-              )}
-
-              {modalMode === "edit" && (
-                <PlanningForm
-                  enseignants={ensignants}
-                  mentions={filteredMent}
-                  niveaux={filteredNiv}
-                  salles={salles}
-                  matieres={filteredMat}
-                  horaires={filteredHoraire}
-                  selectedDate={new Date(selectedEvent.start)}
-                  modalType={"edit"}
-                  data={{
-                    numEd: selectedEvent.numEd,
-                    jour: formatDate(selectedEvent.start),
-                    hDeb: selectedEvent.hDeb,
-                    hFin: selectedEvent.hFin,
-                    dispo: selectedEvent.status,
-                    type: selectedEvent.type,
-                    responsableId: userId,
-                    enseignantId:
-                      ensignants.find(
-                        (ens) =>
-                          `${ens.prenom} ${ens.nom}` ===
-                          `${selectedEvent.prenomEns} ${selectedEvent.nomEns}`,
-                      )?.id || "",
-                    mentionId:
-                      mentions.find(
-                        (mnt) => mnt.nomMention === selectedEvent.mention,
-                      )?.idMent || "",
-                    niveauId:
-                      niveaux.find((nv) => nv.intitule === selectedEvent.niveau)
-                        ?.idNiv || "",
-                    idSalle:
-                      salles.find((s) => s.nomSalle === selectedEvent.salle)
-                        ?.idSalle || "",
-                    matiereId:
-                      matieres.find((m) => m.nomMatiere === selectedEvent.title)
-                        ?.id || "",
-                    anneeId: "1",
-                  }}
-                  handleChange={handleChange}
-                  handleSubmit={(e) => {
-                    e.preventDefault();
-                    const data = {
-                      ...formData,
-                      mentionId: parseInt(formData.mentionId),
-                      niveauId: parseInt(formData.niveauId),
-                      idSalle: parseInt(formData.idSalle),
-                      anneeId: parseInt(formData.anneeId),
-                      jour: formData.jour,
-                      hDeb: `${formData.hDeb}:00`,
-                      hFin: `${formData.hFin}:00`,
-                    };
-
-                    api
-                      .put(`/edt/${formData.numEd}`, data)
-                      .then(() => {
-                        loadSchedule();
-                        setShowAlert(true);
-                        setAlert("Données modifiées avec succès!");
-                      })
-                      .catch((err) => {
-                        if (err.response) {
-                          console.error("Status:", err.response.status);
-                          console.error("Erreur serveur:", err.response.data);
-                        } else {
-                          console.error("Erreur:", err.message);
-                        }
-                      });
-                    setShowModal(false);
-                  }}
-                  setShowModal={setShowModal}
-                />
               )}
             </div>
           </div>

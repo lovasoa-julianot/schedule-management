@@ -27,6 +27,9 @@ mobile/android/.gradle/ android/.kotlin/
 .expo/
 .expo-shared/
 
+**/obj/
+**.idea
+
 # TypeScript
 *.tsbuildinfo
 *.map

@@ -346,6 +346,13 @@ public class ImUtilisateur : IUtilisateur
         return res.First();
     }
 
+    public async Task<bool> checkEmailResponsable(string email)    {
+        var auth = await _db.Authentifications
+            .FirstOrDefaultAsync(a => a.email == email);
+        if (auth == null) return false;
+        return true;
+    }
+
     public async Task<bool> updateAsync(string id, UpdateResponsableDto dto)
     {
         var res = await _db.Responsables.FindAsync(id);

@@ -1,4 +1,3 @@
-// import "./App.css";
 import Planning from "./components/planning";
 import Navbar from "./components/navbar";
 import TopBar from "./components/topbar";
@@ -22,7 +21,6 @@ import TeacherHour from "./components/statistics/teacherHour";
 import Week from "./components/statistics/week";
 import Profil from "./components/settings/profil";
 import Sector from "./components/settings/sector";
-// import AssistantFloatingForm from "./components/forms/assistant";
 import api from "./hooks/api";
 import ForgotPassword from "./components/auth/forgetPassword";
 import Users from "./components/users";
@@ -30,6 +28,9 @@ import Users from "./components/users";
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // État pour contrôler l'ouverture/fermeture de la Navbar sur mobile
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     api
@@ -42,10 +43,7 @@ function App() {
         }
       })
       .catch((error) => {
-        console.error("Erreur vérification authentification :", error);
-        console.error("Status :", error.response?.status);
-        console.error("Response :", error.response?.data);
-
+        console.error("Erreur vérification authentification :", error.message);
         setIsAuthenticated(false);
       })
       .finally(() => {
@@ -53,17 +51,35 @@ function App() {
       });
   }, []);
 
-  if (loading) return <div>Chargement...</div>;
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-slate-50 text-slate-500 font-medium">
+        Chargement de SchedConnect...
+      </div>
+    );
+  }
 
   return (
-    <div className="App">
+    <div className="App min-h-screen bg-slate-50 text-slate-800 antialiased">
       <Router>
         {isAuthenticated ? (
-          <>
-            <Navbar setLoading={setLoading} />
-            <div className="sm:ml-64 bg-slate-50">
-              <TopBar setIsAuthenticated={setIsAuthenticated} />
-              <div className="p-20 mt-5">
+          <div className="min-h-screen bg-slate-50">
+            {/* Navbar (Sidebar) avec gestion de l'état mobile */}
+            <Navbar
+              isOpen={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+              setLoading={setLoading}
+            />
+
+            {/* TopBar avec le déclencheur du menu hamburger */}
+            <TopBar
+              setIsAuthenticated={setIsAuthenticated}
+              onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+            />
+
+            {/* Zone de contenu principale décalée pour éviter les chevauchements */}
+            <div className="sm:ml-64 min-h-screen flex flex-col bg-slate-50">
+              <main className="flex-1 pt-24 px-6 pb-12">
                 <Routes>
                   <Route
                     path="/"
@@ -88,11 +104,14 @@ function App() {
                   <Route path="/profile" element={<Profil />} />
                   <Route path="/parametre/curcus" element={<Sector />} />
                   <Route path="/users" element={<Users />} />
+                  <Route
+                    path="*"
+                    element={<Navigate to="/dashboard" replace />}
+                  />
                 </Routes>
-              </div>
-              {/* <AssistantFloatingForm /> */}
+              </main>
             </div>
-          </>
+          </div>
         ) : (
           <Routes>
             <Route
@@ -101,7 +120,7 @@ function App() {
             />
             <Route path="/forgotPassword" element={<ForgotPassword />} />
             <Route path="/register" element={<Register />} />
-            <Route path="*" element={<Navigate to="/login" />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         )}
       </Router>

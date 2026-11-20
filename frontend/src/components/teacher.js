@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { FiPlus, FiSearch } from "react-icons/fi";
-import { MdPrint } from "react-icons/md";
+import {
+  FiPlus,
+  FiSearch,
+  FiMail,
+  FiPhone,
+  FiMapPin,
+  FiUser,
+} from "react-icons/fi";
 import {
   FaDownload,
   FaEdit,
-  FaFile,
-  FaFileCsv,
-  FaFileExcel,
   FaFileExport,
   FaFileImport,
   FaFilePdf,
-  FaTrashAlt,
+  FaFileExcel,
   FaUpload,
+  FaTrashAlt,
 } from "react-icons/fa";
 import TeacherForm from "./forms/teacher-form";
 import { jsPDF } from "jspdf";
@@ -20,27 +24,23 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  IconButton,
   LinearProgress,
   Menu,
   MenuItem,
 } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
-
 import * as XLSX from "xlsx";
 import AlertInfo from "./notification/alert";
 import Confirm from "./notification/confirm";
 import api from "../hooks/api";
-import { set } from "date-fns";
 import { Loader } from "./spin/Spinner";
 import Swal from "sweetalert2";
 import { can } from "../hooks/permission";
 
 const Teacher = () => {
   const [enseignant, setEnseignant] = useState([]);
-  const [fileterd, setFiltered] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [formData, setFormData] = useState({
     id: "",
     nom: "",
@@ -65,7 +65,7 @@ const Teacher = () => {
       .finally(() => {
         setTimeout(() => {
           setLoading(false);
-        }, 1700);
+        }, 1200);
       });
   };
 
@@ -75,7 +75,7 @@ const Teacher = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [showModalEdit, setShowModalEdit] = useState(false);
-  const [searchfield, setSearchfiled] = useState("");
+  const [searchfield, setSearchfield] = useState("");
   const [alert, setAlert] = useState("");
   const [showAlert, setShowAlert] = useState(false);
 
@@ -102,7 +102,7 @@ const Teacher = () => {
     e.preventDefault();
     api
       .post("/user/add/teacher", formData)
-      .then((res) => {
+      .then(() => {
         loadData();
         setFormData({
           id: "",
@@ -137,13 +137,10 @@ const Teacher = () => {
 
   const handleUpdate = (e) => {
     e.preventDefault();
-    if (!formData.id) {
-      console.error("ID de l'enseignant manquant pour la mise à jour");
-      return;
-    }
+    if (!formData.id) return;
     api
       .put(`/user/teacher/${formData.id}`, formData)
-      .then((res) => {
+      .then(() => {
         loadData();
         setFormData({
           id: "",
@@ -194,26 +191,20 @@ const Teacher = () => {
       });
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowAlert(false);
-    }, 1500);
-    return () => timer;
-  }, [alert]);
-
+  // Filtrage réactif
   const filter = enseignant.filter((ens) =>
     (
-      ens.nom +
+      (ens.nom || "") +
       " " +
-      ens.prenom +
+      (ens.prenom || "") +
       " " +
-      ens.adresse +
+      (ens.adresse || "") +
       " " +
-      ens.grade +
+      (ens.grade || "") +
       " " +
-      ens.phone +
+      (ens.phone || "") +
       " " +
-      ens.genre
+      (ens.genre || "")
     )
       .toLowerCase()
       .includes(searchfield.toLowerCase()),
@@ -240,9 +231,6 @@ const Teacher = () => {
       XLSX.utils.book_append_sheet(wb, ws, `Enseignant`);
       XLSX.writeFile(wb, "enseignants.xlsx");
     }
-
-    // setShowAlert(true);
-    // setAlert("Desole! Aucun enseignant a exporte pour le moment");
   };
 
   const ExportPDF = () => {
@@ -250,11 +238,11 @@ const Teacher = () => {
     const colonnes = ["NOM", "PRENOM", "GENRE", "GRADE", "TELEPHONE"];
     if (enseignant.length > 0) {
       const ligne = enseignant.map((ligne) => [
-        ligne.nom.toUpperCase(),
-        ligne.prenom,
-        ligne.genre,
-        ligne.grade,
-        ligne.phone,
+        (ligne.nom || "").toUpperCase(),
+        ligne.prenom || "",
+        ligne.genre || "",
+        ligne.grade || "",
+        ligne.phone || "",
       ]);
 
       doc.text(`Liste des enseignants`, 15, 10);
@@ -266,9 +254,6 @@ const Teacher = () => {
 
       doc.save(`liste_enseignants.pdf`);
     }
-
-    // setShowAlert(true);
-    // setAlert("Desole! Aucun enseignant a exporte pour le moment");
   };
 
   const [anchorElImport, setAnchorElImport] = useState(null);
@@ -278,25 +263,15 @@ const Teacher = () => {
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
 
-  const handleOpenImportMenu = (event) => {
+  const handleOpenImportMenu = (event) =>
     setAnchorElImport(event.currentTarget);
-  };
-
-  const handleOpenExportMenu = (event) => {
+  const handleOpenExportMenu = (event) =>
     setAnchorElExport(event.currentTarget);
-  };
-
-  const handleCloseImportMenu = () => {
-    setAnchorElImport(null);
-  };
-
-  const handleCloseExportMenu = () => {
-    setAnchorElExport(null);
-  };
+  const handleCloseImportMenu = () => setAnchorElImport(null);
+  const handleCloseExportMenu = () => setAnchorElExport(null);
 
   const downloadCsvTemplate = () => {
     const headers = ["nom", "prenom", "genre", "adresse", "telephone", "grade"];
-
     const exampleRow = [
       "RAKOTOARIJAONA",
       "Mahafaly Germain",
@@ -305,13 +280,8 @@ const Teacher = () => {
       "0345896612",
       "Professeur Titulaire",
     ];
-
     const csvContent = [headers.join(","), exampleRow.join(",")].join("\n");
-
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
-
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     saveAs(blob, "template_enseignants.csv");
     handleCloseImportMenu();
   };
@@ -330,8 +300,6 @@ const Teacher = () => {
       encoding: "UTF-8",
       complete: (results) => {
         const data = results.data;
-        console.log("Données brutes CSV :", data);
-
         if (data.length === 0) {
           setImporting(false);
           alert("Le fichier CSV est vide ou mal formaté !");
@@ -339,9 +307,6 @@ const Teacher = () => {
         }
 
         let current = 0;
-        setImporting(true);
-        setProgress(0);
-
         const interval = setInterval(() => {
           if (current < 70) {
             current += 5;
@@ -353,7 +318,6 @@ const Teacher = () => {
           .post("/user/teacher/import", data)
           .then(() => {
             clearInterval(interval);
-
             const finishInterval = setInterval(() => {
               if (current < 100) {
                 current += 5;
@@ -362,7 +326,6 @@ const Teacher = () => {
                 clearInterval(finishInterval);
                 setImporting(false);
                 loadData();
-
                 Swal.fire({
                   title: "Importation terminée !",
                   text: "Les données ont été importées avec succès.",
@@ -374,18 +337,14 @@ const Teacher = () => {
           .catch((err) => {
             clearInterval(interval);
             setImporting(false);
-
-            console.error("Erreur d'importation:", err?.response?.data);
-
             Swal.fire({
               title: "Erreur d'importation",
-              text: "Une erreur est survenue lors de l'importation des données. Veuillez vérifier le format du fichier.",
+              text: "Une erreur est survenue lors de l'importation des données.",
               icon: "error",
             });
           });
       },
-      error: (err) => {
-        console.error("Erreur CSV :", err);
+      error: () => {
         setImporting(false);
         setProgress(0);
         alert("Erreur lors de l'import CSV");
@@ -401,16 +360,12 @@ const Teacher = () => {
   useEffect(() => {
     api
       .get("/user/profile")
-      .then((rep) => {
-        setUserRole(rep.data.userRole);
-      })
-      .catch(() => {
-        setUserRole(null);
-      });
+      .then((rep) => setUserRole(rep.data.userRole))
+      .catch(() => setUserRole(null));
   }, []);
 
   return (
-    <div className="teacher-container h-screen">
+    <div className="teacher-container min-h-screen p-6 md:p-8 bg-slate-50/70 font-sans">
       {showAlert && alert && (
         <AlertInfo alert={alert} setShowAlert={setShowAlert} />
       )}
@@ -419,121 +374,115 @@ const Teacher = () => {
         open={importing}
         maxWidth="xs"
         fullWidth
-        PaperProps={{
-          className: "rounded-xl p-4",
-        }}
+        PaperProps={{ className: "rounded-2xl p-4 shadow-xl" }}
       >
-        <DialogTitle className="text-center font-semibold">
+        <DialogTitle className="text-center font-bold text-slate-800">
           Importation en cours…
         </DialogTitle>
-
         <DialogContent className="space-y-4">
-          <p className="text-sm text-gray-500 text-center">
-            Veuillez patienter pendant l’analyse du fichier CSV
+          <p className="text-sm text-slate-500 text-center">
+            Veuillez patienter pendant l’analyse du fichier CSV.
           </p>
-
           <LinearProgress
             variant="determinate"
             value={progress}
-            className="h-2 rounded-full"
+            className="h-2.5 rounded-full"
           />
-
-          <p className="text-center text-sm font-medium text-blue-600">
+          <p className="text-center text-sm font-semibold text-indigo-600">
             {progress} %
           </p>
         </DialogContent>
       </Dialog>
 
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-semibold text-gray-800">
-          {userRole === "Admin"
-            ? "Gestion des enseignants"
-            : "Liste des enseignants"}
-        </h2>
+      {/* En-tête de la page */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-slate-100 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            {userRole === "Admin"
+              ? "Gestion des enseignants"
+              : "Liste des enseignants"}
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Consultez, gérez et exportez les dossiers du corps enseignant.
+          </p>
+        </div>
 
-        <div className="w-full max-w-md">
-          <label className="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">
-            Recherche
-          </label>
+        {/* Barre de recherche moderne */}
+        <div className="w-full md:w-80">
           <div className="relative">
-            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-              <FiSearch className="w-5 h-5 text-gray-500" />
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+              <FiSearch className="w-4 h-4 text-slate-400" />
             </div>
             <input
               type="search"
               value={searchfield}
-              onChange={(e) => setSearchfiled(e.target.value)}
-              className="w-full border border-gray-300 p-4 ps-10 text-sm text-gray-900 rounded-lg bg-white rounded-md focus:outline-none focus:ring focus:ring-blue-400"
-              placeholder="Recherche"
-              required
+              onChange={(e) => setSearchfield(e.target.value)}
+              className="w-full border border-slate-200 bg-white py-2.5 ps-10 pe-4 text-sm text-slate-800 rounded-xl shadow-xs transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              placeholder="Rechercher un enseignant..."
             />
-            <button
-              type="button"
-              className="text-white absolute end-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-            >
-              Aller
-            </button>
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+      {/* Barre d'outils secondaire (Export / Import / Ajout) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex flex-wrap items-center gap-3">
+          {/* Bouton Export */}
           <div className="relative">
             <button
               onClick={handleOpenExportMenu}
-              className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-xs transition-all hover:bg-slate-50"
             >
-              <FaFileExport className="w-5 h-5 " />
-              Export
+              <FaFileExport className="w-4 h-4 text-slate-500" />
+              <span>Exporter</span>
             </button>
-
             <Menu
               anchorEl={anchorElExport}
               open={openExportMenu}
               onClose={handleCloseExportMenu}
               PaperProps={{
-                className: "rounded-xl shadow-xl border border-gray-100 mt-2",
+                className: "rounded-xl shadow-lg border border-slate-100 mt-2",
               }}
             >
               <MenuItem
-                className="flex items-center gap-2 text-sm"
                 onClick={ExportPDF}
+                className="flex items-center gap-2.5 text-sm py-2.5"
               >
-                <FaFilePdf className="w-5 h-5 text-red-500" />
-                PDF
+                <FaFilePdf className="w-4 h-4 text-rose-500" /> Format PDF
               </MenuItem>
               <MenuItem
                 onClick={ExportExcel}
-                className="flex items-center gap-2 text-sm"
+                className="flex items-center gap-2.5 text-sm py-2.5"
               >
-                <FaFileExcel className="w-5 h-5 text-green-500" />
+                <FaFileExcel className="w-4 h-4 text-emerald-500" /> Format
                 Excel
               </MenuItem>
             </Menu>
           </div>
+
+          {/* Bouton Import */}
           {can(userRole === "Admin" ? "admin" : "secretary", "import") && (
             <div className="relative">
               <button
                 onClick={handleOpenImportMenu}
-                className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-xs transition-all hover:bg-slate-50"
               >
-                <FaFileImport className="w-5 h-5" />
-                Import
+                <FaFileImport className="w-4 h-4 text-slate-500" />
+                <span>Importer</span>
               </button>
-
               <Menu
                 anchorEl={anchorElImport}
                 open={openImportMenu}
                 onClose={handleCloseImportMenu}
                 PaperProps={{
-                  className: "rounded-xl shadow-xl border border-gray-100 mt-2",
+                  className:
+                    "rounded-xl shadow-lg border border-slate-100 mt-2",
                 }}
               >
-                <MenuItem className="text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer w-full">
-                    <FaUpload className="w-5 h-5 text-blue-400" />
-                    Importer CSV
+                <MenuItem className="text-sm py-2.5">
+                  <label className="flex items-center gap-2.5 cursor-pointer w-full">
+                    <FaUpload className="w-4 h-4 text-indigo-500" />
+                    Importer un fichier CSV
                     <input
                       type="file"
                       accept=".csv"
@@ -544,23 +493,24 @@ const Teacher = () => {
                 </MenuItem>
                 <MenuItem
                   onClick={downloadCsvTemplate}
-                  className="flex items-center gap-2 text-sm"
+                  className="flex items-center gap-2.5 text-sm py-2.5"
                 >
-                  <FaDownload className="w-5 h-5" />
-                  Télécharger template
+                  <FaDownload className="w-4 h-4 text-slate-500" /> Télécharger
+                  le template CSV
                 </MenuItem>
               </Menu>
             </div>
           )}
         </div>
 
+        {/* Bouton Nouveau */}
         {can(userRole === "Admin" ? "admin" : "secretary", "add") && (
           <button
             onClick={openModal}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:scale-[1.02] hover:shadow-lg active:scale-95"
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-95"
           >
-            <FiPlus className="w-5 h-5" />
-            Nouveau
+            <FiPlus className="w-4 h-4" />
+            <span>Nouveau enseignant</span>
           </button>
         )}
       </div>
@@ -592,94 +542,118 @@ const Teacher = () => {
         />
       )}
 
-      <div className="shadow rounded-lg mt-6">
+      {/* Tableau moderne type carte */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <div className="max-h-[700px] overflow-y-auto">
-            <table className="min-w-full bg-white text-gray-700 table-fixed">
-              <thead className="bg-indigo-100 text-left font-semibold sticky top-0 z-0">
+          <table className="min-w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <th className="px-5 py-3.5">#</th>
+                <th className="px-5 py-3.5">Enseignant</th>
+                <th className="px-5 py-3.5">Genre</th>
+                <th className="px-5 py-3.5">Grade</th>
+                <th className="px-5 py-3.5">Contact</th>
+                <th className="px-5 py-3.5">Adresse</th>
+                {can(userRole === "Admin" ? "admin" : "secretary", "edit") && (
+                  <th className="px-5 py-3.5 text-end">Actions</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+              {loading ? (
                 <tr>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">#</th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">NOM</th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    PRENOM
-                  </th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    GENRE
-                  </th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    ADRESSE
-                  </th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    COURRIEL
-                  </th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    TELEPHONE
-                  </th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    GRADE
-                  </th>
-                  {can(
-                    userRole === "Admin" ? "admin" : "secretary",
-                    "edit",
-                  ) && (
-                    <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                      ACTIONS
-                    </th>
-                  )}
+                  <td colSpan={7} className="py-20 text-center">
+                    <Loader />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={9}>
-                      <Loader />
-                    </td>
-                  </tr>
-                ) : filter.length > 0 ? (
-                  filter.map((ens, index) => (
-                    <tr key={index} className="border-t hover:bg-gray-50">
-                      <td className="px-4 py-3">{index + 1}</td>
-                      <td className="px-4 py-3">{ens.nom}</td>
-                      <td className="px-4 py-3">{ens.prenom}</td>
-                      <td className="px-4 py-3">{ens.genre}</td>
-                      <td className="px-4 py-3">{ens.adresse}</td>
-                      <td className="px-4 py-3">{ens.email ?? "N/A"}</td>
-                      <td className="px-4 py-3">{ens.phone}</td>
-                      <td className="px-4 py-3">{ens.grade}</td>
+              ) : filter.length > 0 ? (
+                filter.map((ens, index) => {
+                  const initials =
+                    `${ens.nom?.[0] || ""}${ens.prenom?.[0] || ""}`.toUpperCase();
+                  return (
+                    <tr
+                      key={ens.id || index}
+                      className="hover:bg-slate-50/60 transition-colors group"
+                    >
+                      <td className="px-5 py-4 font-medium text-slate-400">
+                        {index + 1}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs tracking-wide shrink-0">
+                            {initials || <FiUser className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-slate-900 uppercase">
+                              {ens.nom}{" "}
+                              <span className="font-normal capitalize">
+                                {ens.prenom}
+                              </span>
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
+                          {ens.genre || "N/A"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 font-medium text-slate-800">
+                        {ens.grade || "N/A"}
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-0.5">
+                          <span className="flex items-center gap-1.5 text-xs text-slate-600 font-medium">
+                            <FiPhone className="w-3.5 h-3.5 text-slate-400" />{" "}
+                            {ens.phone || "N/A"}
+                          </span>
+                          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                            <FiMail className="w-3.5 h-3.5" />{" "}
+                            {ens.email || "Aucun email"}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        <span className="flex items-center gap-1 text-xs">
+                          <FiMapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />{" "}
+                          {ens.adresse || "N/A"}
+                        </span>
+                      </td>
                       {can(
                         userRole === "Admin" ? "admin" : "secretary",
                         "edit",
                       ) && (
-                        <td className="px-4 py-3">
-                          <button
-                            className="text-blue-600 text-md p-2"
-                            onClick={() => openModalEdit(ens)}
-                          >
-                            <FaEdit className="inline-block w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => askDelete(ens.id)}
-                            className="text-red-600 text-md ml-4 p-2"
-                          >
-                            <FaTrashAlt className="inline-block w-5 h-5" />
-                          </button>
+                        <td className="px-5 py-4 text-end">
+                          <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => openModalEdit(ens)}
+                              className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                              title="Modifier"
+                            >
+                              <FaEdit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => askDelete(ens.id)}
+                              className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                              title="Supprimer"
+                            >
+                              <FaTrashAlt className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       )}
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="9"
-                      className="text-center px-6 py-4 text-gray-500"
-                    >
-                      Aucun enseignant trouvé.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan="7" className="text-center py-16 text-slate-400">
+                    Aucun enseignant trouvé.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

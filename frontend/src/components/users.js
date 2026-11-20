@@ -1,15 +1,14 @@
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader } from "./spin/Spinner";
-import { FaEdit, FaTrashAlt } from "react-icons/fa";
-import { FiPlus, FiSearch } from "react-icons/fi";
+import { FiEdit2, FiTrash2, FiPlus, FiSearch } from "react-icons/fi";
 import api from "../hooks/api";
 import UserForm from "./forms/user-form";
 import Swal from "sweetalert2";
 
 const Users = () => {
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState([]);
-  const [searchfield, setSearchfiled] = useState("");
+  const [usersList, setUsersList] = useState([]);
+  const [searchField, setSearchField] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [userdata, setUserdata] = useState({
     id: "",
@@ -33,19 +32,23 @@ const Users = () => {
       });
   };
 
-  const users = () => {
+  const fetchUsers = () => {
+    setLoading(true);
     api
       .get("user/all")
       .then((rep) => {
-        setFilter(rep.data);
+        setUsersList(rep.data);
       })
       .catch(() => {
-        setFilter([]);
+        setUsersList([]);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   };
 
   useEffect(() => {
-    users();
+    fetchUsers();
     loadTeacher();
   }, []);
 
@@ -66,7 +69,7 @@ const Users = () => {
           icon: "success",
           confirmButtonText: "OK",
         });
-        users();
+        fetchUsers();
         loadTeacher();
       })
       .catch((err) => {
@@ -80,48 +83,53 @@ const Users = () => {
       });
   };
 
+  // Filtrage dynamique des utilisateurs selon la recherche
+  const filteredUsers = usersList.filter((u) => {
+    const term = searchField.toLowerCase();
+    const fullName = `${u.nom || ""} ${u.prenom || ""}`.toLowerCase();
+    const email = (u.email || "").toLowerCase();
+    return fullName.includes(term) || email.includes(term);
+  });
+
   return (
-    <div className="user-container h-screen">
-      <h1 className="text-2xl font-bold mb-4"></h1>
+    <div className="space-y-6 pb-12">
+      {/* En-tête avec titre, barre de recherche et bouton d'ajout */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-slate-100">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Gestion des utilisateurs
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Gérez les comptes, les rôles et les accès des utilisateurs du
+            système.
+          </p>
+        </div>
 
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-semibold text-gray-800">
-          Gestion des utilisateurs
-        </h2>
-
-        <div className="w-full max-w-md">
-          <label className="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">
-            Recherche
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-              <FiSearch className="w-5 h-5 text-gray-500" />
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Barre de recherche */}
+          <div className="relative w-full sm:w-72">
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none text-slate-400">
+              <FiSearch className="w-4 h-4" />
             </div>
             <input
               type="search"
-              value={searchfield}
-              onChange={(e) => setSearchfiled(e.target.value)}
-              className="w-full border border-gray-300 p-4 ps-10 text-sm text-gray-900 rounded-lg bg-white rounded-md focus:outline-none focus:ring focus:ring-blue-400"
-              placeholder="Recherche"
-              required
+              value={searchField}
+              onChange={(e) => setSearchField(e.target.value)}
+              className="w-full border border-slate-200 bg-slate-50/50 ps-10 pe-4 py-2.5 text-sm text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder-slate-400"
+              placeholder="Rechercher un utilisateur..."
             />
-            <button
-              type="button"
-              className="text-white absolute end-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-            >
-              Aller
-            </button>
           </div>
+
+          {/* Bouton Nouvel utilisateur */}
+          <button
+            onClick={() => setShowModal(true)}
+            className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-indigo-700 active:scale-95 cursor-pointer shrink-0"
+          >
+            <FiPlus className="w-4 h-4" />
+            Nouvel utilisateur
+          </button>
         </div>
       </div>
-
-      <button
-        onClick={() => setShowModal(true)}
-        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:scale-[1.02] hover:shadow-lg active:scale-95"
-      >
-        <FiPlus className="w-5 h-5" />
-        Nouvel utilisateur
-      </button>
 
       {showModal && (
         <UserForm
@@ -133,97 +141,111 @@ const Users = () => {
         />
       )}
 
-      <div className="shadow rounded-lg mt-6">
+      {/* Tableau des utilisateurs */}
+      <div className="bg-white rounded-2xl shadow-xs border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <div className="max-h-[700px] overflow-y-auto">
-            <table className="min-w-full bg-white text-gray-700 table-fixed">
-              <thead className="bg-indigo-100 text-left font-semibold sticky top-0 z-0">
+            <table className="min-w-full text-left border-collapse">
+              <thead className="bg-slate-50 text-slate-400 font-semibold text-xs uppercase tracking-wider sticky top-0 z-10 border-b border-slate-100">
                 <tr>
-                  {/* <th className="px-4 py-3 w-16">#</th> */}
-                  <th className="px-4 py-3">UTILISATEUR</th>
-                  <th className="px-4 py-3">CREATION</th>
-                  <th className="px-4 py-3">STATUS</th>
-                  <th className="px-4 py-3">EMAIL</th>
-                  <th className="px-4 py-3 text-center">ACTIONS</th>
+                  <th className="px-6 py-4">Utilisateur</th>
+                  <th className="px-6 py-4">Création</th>
+                  <th className="px-6 py-4">Statut</th>
+                  <th className="px-6 py-4">Email</th>
+                  <th className="px-6 py-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100 text-sm">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="py-10 text-center">
-                      <Loader />
+                    <td colSpan={5} className="py-20 text-center">
+                      <Loader size="lg" color="blue" />
                     </td>
                   </tr>
-                ) : filter.length > 0 ? (
-                  filter.map((u, index) => (
+                ) : filteredUsers.length > 0 ? (
+                  filteredUsers.map((u, index) => (
                     <tr
                       key={u.id || index}
-                      className="border-t hover:bg-gray-50 transition-colors"
+                      className="hover:bg-slate-50/60 transition-colors"
                     >
-                      {/* <td className="px-4 py-3 text-sm text-gray-500">
-                        {index + 1}
-                      </td> */}
-
-                      <td className="px-4 py-3">
-                        <div className="flex items-center">
-                          <div className="h-14 w-14 flex-shrink-0">
-                            <img
-                              className="h-14 w-14 rounded-full object-cover border border-gray-200 text-white"
-                              src={
-                                u.photo ||
-                                `https://ui-avatars.com/api/?name=${u.prenom}+${u.nom}&background=random`
-                              }
-                              alt=""
-                            />
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-md font-medium text-gray-900">
-                              {u.prenom}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3.5">
+                          <img
+                            className="h-11 w-11 rounded-xl object-cover border border-slate-200 bg-indigo-50 shrink-0"
+                            src={
+                              u.photo ||
+                              `https://ui-avatars.com/api/?name=${u.prenom || ""}+${u.nom || ""}&background=6366f1&color=fff`
+                            }
+                            alt=""
+                          />
+                          <div>
+                            <div className="font-bold text-slate-900">
+                              {u.nom ? u.nom.toUpperCase() : ""}{" "}
+                              {u.prenom || ""}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-xs font-medium text-slate-500 mt-0.5">
                               {u.role || "Enseignant"}
                             </div>
                           </div>
                         </div>
                       </td>
 
-                      <td className="px-4 py-3 text-md italic text-gray-500">
+                      <td className="px-6 py-4 text-slate-500 font-medium text-xs">
                         {u.creation || "N/A"}
                       </td>
 
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4">
                         <span
-                          className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          className={`px-3 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${
                             u.status === "Actif"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                              : "bg-amber-50 text-amber-700 border border-amber-100"
                           }`}
                         >
                           {u.status || "En attente"}
                         </span>
                       </td>
 
-                      <td className="px-4 py-3 text-md text-blue-600 underline">
-                        {u.email || "non-rueigné@mail.com"}
+                      <td className="px-6 py-4 text-indigo-600 font-medium">
+                        {u.email ? (
+                          <a
+                            href={`mailto:${u.email}`}
+                            className="hover:underline"
+                          >
+                            {u.email}
+                          </a>
+                        ) : (
+                          <span className="text-slate-400 italic">
+                            Non renseigné
+                          </span>
+                        )}
                       </td>
 
-                      <td className="px-4 py-3 text-center">
-                        <button className=" hover:text-blue-900 transition-colors bg-blue-500 p-2 rounded-md text-white">
-                          <FaEdit className="w-5 h-5" />
-                        </button>
-                        <button className="text-white hover:text-red-900 ml-4 transition-colors p-2 rounded-md bg-red-500">
-                          <FaTrashAlt className="w-5 h-5" />
-                        </button>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            title="Modifier"
+                            className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 transition-colors cursor-pointer"
+                          >
+                            <FiEdit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            title="Supprimer"
+                            className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer"
+                          >
+                            <FiTrash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td
-                      colSpan="6"
-                      className="text-center px-6 py-10 text-gray-500 italic"
+                      colSpan="5"
+                      className="text-center py-16 text-slate-400 italic"
                     >
-                      Aucune donnée trouvée.
+                      Aucun utilisateur trouvé.
                     </td>
                   </tr>
                 )}

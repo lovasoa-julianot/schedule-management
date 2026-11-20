@@ -1,3 +1,6 @@
+import React from "react";
+import { FiX, FiCalendar, FiClock } from "react-icons/fi";
+
 const PlanningForm = ({
   enseignants,
   mentions,
@@ -12,27 +15,53 @@ const PlanningForm = ({
   setShowModal,
   modalType,
 }) => {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-white p-6 rounded-lg w-[500px] shadow-xl relative">
-        <h2 className="text-lg font-semibold mb-4">
-          {modalType === "create"
-            ? `Ajouter un événement le ${selectedDate.toLocaleDateString()}`
-            : `Modifier l'événement du ${selectedDate.toLocaleDateString()}`}
-        </h2>
+  // Formatage sécurisé de la date si elle existe
+  const formattedDate =
+    selectedDate instanceof Date
+      ? selectedDate.toLocaleDateString()
+      : selectedDate || "";
 
-        <form onSubmit={handleSubmit}>
-          <div className="text-start">
-            <label>Type</label>
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl p-6 md:p-8 w-full max-w-xl shadow-xl border border-slate-100 my-8">
+        {/* En-tête de la modale */}
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900">
+              {modalType === "create"
+                ? "Ajouter un événement"
+                : "Modifier l'événement"}
+            </h2>
+            {formattedDate && (
+              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                <FiCalendar className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Date concernée : {formattedDate}</span>
+              </p>
+            )}
+          </div>
+          <button
+            onClick={() => setShowModal(false)}
+            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors"
+          >
+            <FiX className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Type d'événement */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+              Type d'événement
+            </label>
             <select
               name="type"
-              className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
               value={data.type || ""}
               onChange={handleChange}
+              className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
               required
             >
               <option value="" disabled>
-                Choisir
+                Choisir un type
               </option>
               <option value="Hebdomadaire">Hebdomadaire</option>
               <option value="Semestriel">Semestriel</option>
@@ -40,67 +69,76 @@ const PlanningForm = ({
             </select>
           </div>
 
-          <div className="text-start">
-            <label>Enseignant</label>
-            <select
-              name="enseignantId"
-              value={data.enseignantId || ""}
-              onChange={handleChange}
-              className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
-              required
-            >
-              <option value="" disabled>
-                Choisir un enseignant
-              </option>
-              {enseignants.length > 0 ? (
-                enseignants.map((enseignant) => (
-                  <option key={enseignant.id} value={enseignant.id}>
-                    {enseignant.nom} {enseignant.prenom}
-                  </option>
-                ))
-              ) : (
+          {/* Enseignant et Matière */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Enseignant
+              </label>
+              <select
+                name="enseignantId"
+                value={data.enseignantId || ""}
+                onChange={handleChange}
+                className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
+                required
+              >
                 <option value="" disabled>
-                  Aucune enseignant disponible
+                  Choisir un enseignant
                 </option>
-              )}
-            </select>
+                {enseignants.length > 0 ? (
+                  enseignants.map((enseignant) => (
+                    <option key={enseignant.id} value={enseignant.id}>
+                      {enseignant.nom} {enseignant.prenom}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    Aucun enseignant disponible
+                  </option>
+                )}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Matière
+              </label>
+              <select
+                name="matiereId"
+                value={data.matiereId || ""}
+                onChange={handleChange}
+                className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
+                required
+              >
+                <option value="" disabled>
+                  Choisir une matière
+                </option>
+                {matieres.length > 0 ? (
+                  matieres.map((matiere) => (
+                    <option key={matiere.id} value={matiere.id}>
+                      {matiere.nomMat}
+                    </option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    Aucune matière disponible
+                  </option>
+                )}
+              </select>
+            </div>
           </div>
 
-          <div className="text-start">
-            <label>Matière</label>
-            <select
-              name="matiereId"
-              value={data.matiereId || ""}
-              onChange={handleChange}
-              className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
-              required
-            >
-              <option value="" disabled>
-                Choisir une matière
-              </option>
-
-              {matieres.length > 0 ? (
-                matieres.map((matiere) => (
-                  <option key={matiere.id} value={matiere.id}>
-                    {matiere.nomMat}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>
-                  Aucune matière disponible
-                </option>
-              )}
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-2">
-            <div className="text-start">
-              <label>Mention</label>
+          {/* Mention et Niveau */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Mention
+              </label>
               <select
                 name="mentionId"
                 value={data.mentionId || ""}
                 onChange={handleChange}
-                className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
+                className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
                 required
               >
                 <option value="" disabled>
@@ -114,17 +152,19 @@ const PlanningForm = ({
               </select>
             </div>
 
-            <div className="text-start">
-              <label>Niveau</label>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Niveau
+              </label>
               <select
                 name="niveauId"
                 value={data.niveauId || ""}
                 onChange={handleChange}
-                className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
+                className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
                 required
               >
                 <option value="" disabled>
-                  Choisir une niveau
+                  Choisir un niveau
                 </option>
                 {niveaux.map((niveau, index) => (
                   <option key={index} value={niveau.idNiv}>
@@ -135,13 +175,16 @@ const PlanningForm = ({
             </div>
           </div>
 
-          <div className="text-start">
-            <label>Salle</label>
+          {/* Salle */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+              Salle
+            </label>
             <select
               name="idSalle"
-              className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
               value={data.idSalle || ""}
               onChange={handleChange}
+              className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
               required
             >
               <option value="" disabled>
@@ -149,23 +192,28 @@ const PlanningForm = ({
               </option>
               {salles.map((salle, index) => (
                 <option key={index} value={salle.idsalle}>
-                  {salle.nomsalle}
+                  {salle.nomsalle} ({salle.capacite} places)
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-2">
-            <div className="text-start">
-              <label htmlFor="">Heure debut</label>
+          {/* Horaires (Heure début et Heure fin) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Heure de début
+              </label>
               <select
                 name="hDeb"
-                className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
                 value={data.hDeb || ""}
                 onChange={handleChange}
+                className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
                 required
               >
-                <option value=""></option>
+                <option value="" disabled>
+                  Heure début
+                </option>
                 {horaires.map((hour, index) => (
                   <option key={index} value={hour.heure}>
                     {hour.heure}
@@ -174,16 +222,20 @@ const PlanningForm = ({
               </select>
             </div>
 
-            <div className="text-start">
-              <label htmlFor="">Heure fin</label>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">
+                Heure de fin
+              </label>
               <select
                 name="hFin"
-                className="border p-2 w-full mb-4 rounded-md focus:outline-none focus:ring focus:ring-blue-400"
                 value={data.hFin || ""}
                 onChange={handleChange}
+                className="w-full border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-slate-700"
                 required
               >
-                <option value=""></option>
+                <option value="" disabled>
+                  Heure fin
+                </option>
                 {horaires.map((hour, index) => (
                   <option key={index} value={hour.heure}>
                     {hour.heure}
@@ -193,22 +245,20 @@ const PlanningForm = ({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 mt-4">
+          {/* Boutons d'action */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
             <button
               type="button"
               onClick={() => setShowModal(false)}
-              className="bg-gray-300 hover:bg-gray-400 px-4 py-2 rounded"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded"
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-sm shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-95"
             >
-              {
-                modalType === "create" ? "Enregistrer" : "Mettre à jour"
-              }
-              
+              {modalType === "create" ? "Enregistrer" : "Mettre à jour"}
             </button>
           </div>
         </form>

@@ -2,16 +2,8 @@ import React, { useEffect, useState } from "react";
 import { FaChalkboardTeacher, FaDoorOpen, FaCalendarAlt } from "react-icons/fa";
 import PieCard from "./chart/pie";
 import Select from "react-select";
-import { tr } from "date-fns/locale";
 import api from "../hooks/api";
-import { Loader, Loader2, Spinner } from "./spin/Spinner";
-
-const genderData = [
-  { name: "Masculin", value: 60 },
-  { name: "Féminin", value: 40 },
-];
-
-const COLORS = ["#4F46E5", "#EC4899"];
+import { Loader, Loader2 } from "./spin/Spinner";
 
 const Dashboard = () => {
   const [mentions, setMentions] = useState([]);
@@ -35,7 +27,6 @@ const Dashboard = () => {
   const [hebdomadaire, setHebdomadaire] = useState([]);
 
   const [infoEnseignants, setInfoEnseignants] = useState([]);
-  const [filter, setFilter] = useState([]);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState(null);
 
@@ -104,7 +95,6 @@ const Dashboard = () => {
       .get("/user/teacher/info/all")
       .then((res) => {
         setInfoEnseignants(res.data);
-        setFilter(res.data);
       })
       .catch((err) => {
         console.log(err);
@@ -126,7 +116,6 @@ const Dashboard = () => {
   };
 
   const [filteredProgressPlan, setFilteredProgressPlan] = useState([]);
-  const [filteredPlanByDay, setFilteredPlanByDay] = useState([]);
 
   useEffect(() => {
     const man = enseignants.filter((item) => item.genre === "Masculin");
@@ -160,9 +149,7 @@ const Dashboard = () => {
     const filtered = progressPlan.filter(
       (p) => p.jour === formatDate(Date.now()),
     );
-
     const sorted = sortByHeure(filtered);
-
     setFilteredProgressPlan(sorted);
   }, [progressPlan]);
 
@@ -178,53 +165,38 @@ const Dashboard = () => {
 
   const filtrerData = (mention, niveau) => {
     const today = formatDate(Date.now());
-
     const filtered = progressPlan.filter(
       (item) =>
         item.jour === today &&
         (!mention || item.mention === mention.value) &&
         (!niveau || item.niveau === niveau.value),
     );
-
     setFilteredProgressPlan(sortByHeure(filtered));
   };
 
   useEffect(() => {
-    if (selectedMention && selectedNiveau) {
+    if (selectedMention || selectedNiveau) {
       filtrerData(selectedMention, selectedNiveau);
     }
   }, [selectedMention, selectedNiveau]);
 
   const handleMentionChange = (mention) => {
-    setSelectedMention(mention ?? mentionOptions[0]);
+    setSelectedMention(mention);
   };
 
   const handleNiveauChange = (niveau) => {
-    setSelectedNiveau(niveau ?? niveauOptions[0]);
+    setSelectedNiveau(niveau);
   };
-
-  // const handleMentionChange = (selectedMention) => {
-  //   setSelectedMention(selectedMention);
-  //   filtrerData(selectedMention, selectedNiveau);
-  // };
-
-  // const handleNiveauChange = (selectedNiveau) => {
-  //   setSelectedNiveau(selectedNiveau);
-  //   filtrerData(selectedMention, selectedNiveau);
-  // };
 
   const total = enseignants?.length || 0;
   const manPercent = total ? Math.floor((Man.length * 100) / total) : 0;
   const womenPercent = total ? Math.floor((Women.length * 100) / total) : 0;
 
-  const [user, setUser] = useState([]);
-
   const getUser = (key) => {
     api
       .get(`/user/info?id=${key}&role=${role}`)
       .then((res) => {
-        // console.log(res.data);
-        setUser(res.data);
+        // Utilisé si besoin
       })
       .catch((err) => console.error("Erreur de recuperation: ", err));
   };
@@ -236,182 +208,217 @@ const Dashboard = () => {
   }, [userId, role]);
 
   return (
-    <div className="dash-container">
-
-      <h2 className="text-2xl text-gray-700">
-        Bienvenue sur{" "}
-        <span className="font-bold">
-          Sched<span className="text-blue-500">Connect</span>
-        </span>
-      </h2>
-      <div className=" h-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-        <div className="bg-white shadow rounded-lg p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">
-                Total enseignants
-              </h3>
-              {loading ? (
-                <Spinner />
-              ) : (
-                <p className="text-3xl font-bold mt-2">{enseignants?.length}</p>
-              )}
-            </div>
-            <FaChalkboardTeacher className="text-indigo-600 text-4xl" />
-          </div>
+    <div className="space-y-6 pb-12">
+      {/* En-tête de bienvenue */}
+      <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Bienvenue sur{" "}
+            <span className="font-extrabold text-indigo-600">
+              Sched<span className="text-blue-500">Connect</span>
+            </span>
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Voici un aperçu global de l'activité et des plannings de votre
+            établissement.
+          </p>
         </div>
+      </div>
 
-        <div className="bg-white shadow rounded-lg p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">
-                Total salles
-              </h3>
-              {loading ? (
-                <Spinner />
-              ) : (
-                <p className="text-3xl font-bold mt-2">{salles?.length}</p>
-              )}
-            </div>
-            <FaDoorOpen className="text-green-500 text-4xl" />
-          </div>
-        </div>
-
-        <div className="bg-white shadow rounded-lg p-5 flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-700">
-                Plannings en cours
-              </h3>
-              <div className="text-3xl font-bold mt-2">
-                {loading ? (
-                  <Spinner />
-                ) : (
-                  <p className="text-3xl font-bold mt-2">
-                    {progressPlan?.length ?? "N/A"}
-                  </p>
-                )}
+      {/* Cartes de statistiques (KPIs) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-white shadow-xs border border-slate-100 rounded-2xl p-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Total enseignants
+            </p>
+            {loading ? (
+              <div className="mt-2">
+                <Loader />
               </div>
-            </div>
-            <FaCalendarAlt className="text-pink-500 text-4xl" />
+            ) : (
+              <p className="text-3xl font-extrabold text-slate-900 mt-1">
+                {enseignants?.length}
+              </p>
+            )}
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+            <FaChalkboardTeacher className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white shadow-xs border border-slate-100 rounded-2xl p-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Total salles
+            </p>
+            {loading ? (
+              <div className="mt-2">
+                <Loader />
+              </div>
+            ) : (
+              <p className="text-3xl font-extrabold text-slate-900 mt-1">
+                {salles?.length}
+              </p>
+            )}
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
+            <FaDoorOpen className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white shadow-xs border border-slate-100 rounded-2xl p-6 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Plannings en cours
+            </p>
+            {loading ? (
+              <div className="mt-2">
+                <Loader />
+              </div>
+            ) : (
+              <p className="text-3xl font-extrabold text-slate-900 mt-1">
+                {progressPlan?.length ?? "0"}
+              </p>
+            )}
+          </div>
+          <div className="w-12 h-12 rounded-2xl bg-pink-50 border border-pink-100 flex items-center justify-center text-pink-600">
+            <FaCalendarAlt className="w-6 h-6" />
           </div>
         </div>
       </div>
 
-      <div className="grid gap-6 grid-cols-1 xl:grid-cols-3 mt-6">
-        <div className="xl:col-span-2 bg-white shadow rounded-lg p-5 w-full flex flex-col h-[350px]">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">
+      {/* Grille principale : Plannings du jour & Diversité de genre */}
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-3">
+        {/* Plannings aujourd'hui */}
+        <div className="xl:col-span-2 bg-white shadow-xs border border-slate-100 rounded-2xl p-6 flex flex-col">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            <h3 className="text-lg font-bold text-slate-900">
               Plannings aujourd'hui
-            </h2>
+            </h3>
 
-            <div className="search-group flex items-center justify-between gap-4">
-              <div className="flex items-center ml-auto justify-end gap-2">
-                <Select
-                  className="w-64"
-                  options={mentionOptions}
-                  placeholder="Selectionne une mention"
-                  value={selectedMention}
-                  onChange={handleMentionChange}
-                  isClearable
-                />
-                <Select
-                  className="w-64"
-                  options={niveauOptions}
-                  placeholder="Selectionne un niveau"
-                  value={selectedNiveau}
-                  onChange={handleNiveauChange}
-                  isClearable
-                />
-              </div>
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <Select
+                className="w-full sm:w-52 text-sm"
+                options={mentionOptions}
+                placeholder="Mention"
+                value={selectedMention}
+                onChange={handleMentionChange}
+                isClearable
+              />
+              <Select
+                className="w-full sm:w-52 text-sm"
+                options={niveauOptions}
+                placeholder="Niveau"
+                value={selectedNiveau}
+                onChange={handleNiveauChange}
+                isClearable
+              />
             </div>
           </div>
 
-          <table className="min-w-full bg-white text-gray-700 table-fixed">
-            <thead className="bg-indigo-100 text-left font-semibold sticky top-0 ">
-              <tr>
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">Horaire</th>
-                <th className="px-4 py-2">Matière</th>
-                <th className="px-4 py-2">Enseignant</th>
-                <th className="px-4 py-2">Salle</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProgressPlan && filteredProgressPlan.length > 0 ? (
-                filteredProgressPlan.map((item, index) => (
-                  <tr key={index} className="border-b">
-                    <td className="px-4 py-2">{index + 1}</td>
-                    <td className="px-4 py-2">
-                      {item.hDeb.slice(0, 5)} - {item.hFin.slice(0, 5)}
-                    </td>
-                    <td className="px-4 py-2">{item.nomMatiere}</td>
-                    <td className="px-4 py-2">{item.prenomEns}</td>
-                    <td className="px-4 py-2">{item.nomSalle}</td>
+          <div className="border border-slate-100 rounded-xl overflow-hidden flex-1">
+            <div className="max-h-[300px] overflow-y-auto">
+              <table className="min-w-full text-left border-collapse">
+                <thead className="bg-slate-50 text-slate-400 font-semibold text-xs uppercase tracking-wider sticky top-0 border-b border-slate-100">
+                  <tr>
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">Horaire</th>
+                    <th className="px-4 py-3">Matière</th>
+                    <th className="px-4 py-3">Enseignant</th>
+                    <th className="px-4 py-3">Salle</th>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td
-                    colSpan="5"
-                    className="text-center px-4 py-2 text-gray-500"
-                  >
-                    Aucune programme trouvé.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {filteredProgressPlan && filteredProgressPlan.length > 0 ? (
+                    filteredProgressPlan.map((item, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-slate-50/60 transition-colors"
+                      >
+                        <td className="px-4 py-3 text-slate-500 font-medium">
+                          {index + 1}
+                        </td>
+                        <td className="px-4 py-3 font-bold text-slate-800">
+                          {item.hDeb?.slice(0, 5)} - {item.hFin?.slice(0, 5)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {item.nomMatiere}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">
+                          {item.prenomEns}
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-indigo-600">
+                          {item.nomSalle}
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="text-center py-12 text-slate-400 italic"
+                      >
+                        Aucun programme trouvé pour aujourd'hui.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg p-5">
-          <h3 className="font-semibold text-gray-700 mb-6">
+        {/* Diversité de genre */}
+        <div className="bg-white shadow-xs border border-slate-100 rounded-2xl p-6 flex flex-col justify-between">
+          <h3 className="text-lg font-bold text-slate-900 mb-6">
             Diversité de genre
           </h3>
 
-          <div className="space-y-6 text-gray-700">
-            <div>
-              <div className="flex justify-between mb-1">
-                <span>Homme</span>
-                <span>{manPercent} %</span>
+          <div className="space-y-6 text-slate-700 my-auto">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm font-semibold">
+                <span className="text-slate-600">Homme</span>
+                <span className="text-indigo-600">{manPercent} %</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-10">
+              <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
                 <div
-                  className="bg-blue-500 h-10 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${manPercent}%`,
-                  }}
+                  className="bg-indigo-600 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${manPercent}%` }}
                 />
               </div>
             </div>
-            <div>
-              <div className="flex justify-between mb-2">
-                <span>Femme</span>
-                <span>{womenPercent} %</span>
+
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm font-semibold">
+                <span className="text-slate-600">Femme</span>
+                <span className="text-pink-500">{womenPercent} %</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-10">
+              <div className="w-full bg-slate-100 rounded-full h-4 overflow-hidden">
                 <div
-                  className="bg-pink-500 h-10 rounded-full transition-all duration-500"
-                  style={{
-                    width: `${womenPercent}%`,
-                  }}
+                  className="bg-pink-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${womenPercent}%` }}
                 />
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-white shadow rounded-lg p-5 h-[400px]">
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">
-            Répartition des planning
-          </h2>
-          <div className="h-auto text-gray-400">
+          <div className="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-400 text-center">
+            Basé sur l'ensemble des enseignants enregistrés
+          </div>
+        </div>
+      </div>
+
+      {/* Grille secondaire : Répartition des plannings & Suivi des enseignants */}
+      <div className="grid gap-6 grid-cols-1 xl:grid-cols-3">
+        {/* Répartition des plannings (Graphique / PieCard) */}
+        <div className="bg-white shadow-xs border border-slate-100 rounded-2xl p-6 flex flex-col">
+          <h3 className="text-lg font-bold text-slate-900 mb-4">
+            Répartition des plannings
+          </h3>
+          <div className="flex-1 flex items-center justify-center min-h-[250px]">
             {loading ? (
-              <>
-                <div className="flex justify-center items-center h-full">
-                  <Loader />
-                </div>
-              </>
+              <Loader />
             ) : hebdomadaire && semestriel && partiel ? (
               <PieCard
                 hebdomadaire={hebdomadaire}
@@ -419,83 +426,91 @@ const Dashboard = () => {
                 partiel={partiel}
               />
             ) : (
-              <p className="text-center text-gray-500">
-                Aucune donnée disponible.
-              </p>
+              <p className="text-slate-400 italic">Aucune donnée disponible.</p>
             )}
           </div>
         </div>
 
-        <div className="bg-white shadow rounded-lg p-5 xl:col-span-2">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold text-gray-700 mb-4">
-              Suivie des activites des enseignants
-            </h2>
+        {/* Suivi des activités des enseignants */}
+        <div className="bg-white shadow-xs border border-slate-100 rounded-2xl p-6 xl:col-span-2 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-slate-900">
+              Suivi des activités des enseignants
+            </h3>
           </div>
 
-          <div className="max-h-[350px] overflow-y-auto">
-            <table className="min-w-full bg-white text-gray-700 table-fixed">
-              <thead className="bg-indigo-100 text-left font-semibold sticky top-0 ">
-                <tr>
-                  <th className="px-4 py-2">Nom & Prenom</th>
-                  <th className="px-4 py-2">Grade</th>
-                  <th className="px-4 py-2">Performance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
+          <div className="border border-slate-100 rounded-xl overflow-hidden flex-1">
+            <div className="max-h-[320px] overflow-y-auto">
+              <table className="min-w-full text-left border-collapse">
+                <thead className="bg-slate-50 text-slate-400 font-semibold text-xs uppercase tracking-wider sticky top-0 border-b border-slate-100">
                   <tr>
-                    <td colSpan={3}>
-                      <Loader2 />
-                    </td>
+                    <th className="px-4 py-3">Nom & Prénom</th>
+                    <th className="px-4 py-3">Grade</th>
+                    <th className="px-4 py-3">Performance</th>
                   </tr>
-                ) : infoEnseignants && infoEnseignants.length > 0 ? (
-                  infoEnseignants.map((ens, index) => {
-                    const totalPrevue = ens.matiereInfo.reduce(
-                      (sum, mat) => sum + mat.hPrevue,
-                      0,
-                    );
-                    const totalEffectue = ens.matiereInfo.reduce(
-                      (sum, mat) => sum + mat.hEffectue,
-                      0,
-                    );
-                    const performance =
-                      totalPrevue > 0
-                        ? Math.round((totalEffectue / totalPrevue) * 100)
-                        : 0;
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={3} className="py-12 text-center">
+                        <Loader2 />
+                      </td>
+                    </tr>
+                  ) : infoEnseignants && infoEnseignants.length > 0 ? (
+                    infoEnseignants.map((ens, index) => {
+                      const totalPrevue = ens.matiereInfo.reduce(
+                        (sum, mat) => sum + mat.hPrevue,
+                        0,
+                      );
+                      const totalEffectue = ens.matiereInfo.reduce(
+                        (sum, mat) => sum + mat.hEffectue,
+                        0,
+                      );
+                      const performance =
+                        totalPrevue > 0
+                          ? Math.round((totalEffectue / totalPrevue) * 100)
+                          : 0;
 
-                    return (
-                      <tr key={index} className="border-b">
-                        <td className="px-4 py-2">
-                          {ens.nom} {ens.prenom}
-                        </td>
-                        <td className="px-4 py-2">{ens.grade}</td>
-                        <td className="px-4 py-2">
-                          <div className="flex flex-row items-center gap-2">
-                            <div className="w-full h-4 bg-gray-200 rounded">
-                              <div
-                                className="h-4 bg-green-500 rounded"
-                                style={{ width: `${performance}%` }}
-                              ></div>
+                      return (
+                        <tr
+                          key={index}
+                          className="hover:bg-slate-50/60 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-medium text-slate-800">
+                            {ens.nom} {ens.prenom}
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">
+                            {ens.grade}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                                <div
+                                  className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${performance}%` }}
+                                ></div>
+                              </div>
+                              <span className="text-xs font-bold text-slate-600 shrink-0 w-10 text-right">
+                                {performance}%
+                              </span>
                             </div>
-                            <span className="text-sm">{performance}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="3"
-                      className="text-center px-4 py-2 text-gray-500"
-                    >
-                      Aucun enseignant trouvé.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="3"
+                        className="text-center py-12 text-slate-400 italic"
+                      >
+                        Aucun enseignant trouvé.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

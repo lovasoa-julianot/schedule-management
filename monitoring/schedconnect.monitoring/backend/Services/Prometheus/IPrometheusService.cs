@@ -8,6 +8,13 @@ public interface IPrometheusService
         string query,
         CancellationToken cancellationToken = default);
 
+    Task<PrometheusResponse<PrometheusQueryData>> QueryRangeAsync(
+        string query,
+        DateTime start,
+        DateTime end,
+        TimeSpan step,
+        CancellationToken cancellationToken = default);
+
     Task<bool> IsAvailableAsync(
         CancellationToken cancellationToken = default);
 }

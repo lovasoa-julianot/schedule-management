@@ -17,4 +17,6 @@ public class MonitoringOverviewDto
     public double AverageResponseTime { get; set; }
 
     public DateTime Timestamp { get; set; }
+
+    public Dictionary<string, bool> Services { get; set; } = new();
 }

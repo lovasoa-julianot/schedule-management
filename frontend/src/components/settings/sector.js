@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
-import { FaPlus, FaRegCalendarAlt, FaUniversity } from "react-icons/fa";
-import { MdOutlineCalendarMonth, MdSchool } from "react-icons/md";
+import { FaRegCalendarAlt, FaUniversity } from "react-icons/fa";
+import { MdSchool } from "react-icons/md";
+import { FiPlus, FiTrash2 } from "react-icons/fi";
 import api from "../../hooks/api";
+import Swal from "sweetalert2";
 
 const Sector = () => {
   const [mentions, setMentions] = useState([]);
   const [niveaux, setNiveaux] = useState([]);
-
-  const [nomMention, setnomMention] = useState("");
+  const [nomMention, setNomMention] = useState("");
   const [intitule, setIntitule] = useState("");
-
   const [annee, setAnnee] = useState([]);
 
   const [anneeData, setAnneeData] = useState({
-    idAnnee: 0,
     debut: "",
     fin: "",
     status: "Inactive",
@@ -42,212 +41,293 @@ const Sector = () => {
 
   const handleSaveMention = (e) => {
     e.preventDefault();
-    api.post("/mention", { nomMention }).then((rep) => {
+    if (!nomMention.trim()) return;
+    api.post("/mention", { nomMention }).then(() => {
       loadData();
-      setnomMention("");
+      setNomMention("");
+      Swal.fire({
+        title: "Succès",
+        text: "Mention ajoutée avec succès.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
     });
   };
 
   const handleSaveNiveau = (e) => {
     e.preventDefault();
-    api.post("/niveau", { intitule }).then((rep) => {
+    if (!intitule.trim()) return;
+    api.post("/niveau", { intitule }).then(() => {
       loadData();
       setIntitule("");
+      Swal.fire({
+        title: "Succès",
+        text: "Niveau ajouté avec succès.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
     });
   };
 
   const handleChange = (e) => {
-    const selectedYear = e.target.value;
-    setAnneeData({
-      debut: selectedYear,
-      fin: selectedYear ? String(Number(selectedYear) + 1) : "",
-      status: "Inactive",
+    const { name, value } = e.target;
+    setAnneeData((prev) => {
+      const updated = { ...prev, [name]: value };
+      // Auto-générer l'année de fin (début + 1) si la fin n'est pas remplie manuellement ou pour aider
+      if (name === "debut" && value) {
+        updated.fin = String(Number(value) + 1);
+      }
+      return updated;
     });
   };
 
   const handleToggle = (id) => {
+    // Logique de bascule du statut de l'année
     const updated = annee.map((a) =>
-      a.idAnnee === id ? { ...a, active: true } : { ...a, active: false }
+      a.idAnnee === id
+        ? { ...a, status: a.status === "Active" ? "Inactive" : "Active" }
+        : a,
     );
     setAnnee(updated);
+    // TODO: Ajouter l'appel API pour sauvegarder le statut si nécessaire
   };
 
-  const ajouterAnnee = () => {
-    try {
-      api
-        .post("/annee", anneeData)
-        .then((rep) => {
-          loadData();
-          alert("Année scolaire ajoutée avec succès");
-        })
-        .catch((err) => console.error("Erreur de l'envoie:", err.message));
-    } catch (error) {
-      console.error("Erreur lors de l'ajout de l'année:", error);
+  const ajouterAnnee = (e) => {
+    e.preventDefault();
+    if (!anneeData.debut || !anneeData.fin) {
+      Swal.fire(
+        "Erreur",
+        "Veuillez sélectionner les années de début et de fin.",
+        "error",
+      );
+      return;
     }
+
+    api
+      .post("/annee", anneeData)
+      .then(() => {
+        loadData();
+        setAnneeData({ debut: "", fin: "", status: "Inactive" });
+        Swal.fire({
+          title: "Succès",
+          text: "Année scolaire ajoutée avec succès",
+          icon: "success",
+          timer: 1500,
+          showConfirmButton: false,
+        });
+      })
+      .catch((err) => console.error("Erreur de l'envoie:", err.message));
   };
 
   return (
-    <main className=" md:p-10 min-h-screen font-sans">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">
-        Paramètres Généraux
-      </h1>
+    <main className="space-y-6 pb-12">
+      {/* En-tête de la page */}
+      <div className="bg-white p-6 rounded-2xl shadow-xs border border-slate-100">
+        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+          Paramètres Généraux
+        </h1>
+        <p className="text-sm text-slate-500 mt-1 max-w-3xl">
+          Cette section vous permet de gérer les éléments fondamentaux de votre
+          système : les <strong>mentions</strong>, les{" "}
+          <strong>niveaux d'études</strong> ainsi que l’
+          <strong>année scolaire active</strong>. Assurez-vous que ces
+          informations sont correctement configurées.
+        </p>
+      </div>
 
-      <p className="text-gray-600 mb-10 max-w-2xl">
-        Cette section vous permet de gérer les éléments fondamentaux de votre
-        système : les <strong>mentions</strong>, les{" "}
-        <strong>niveaux d'études</strong> ainsi que l’
-        <strong>année scolaire active</strong>. Assurez-vous que ces
-        informations sont correctement configurées pour un bon fonctionnement de
-        l’application.
-      </p>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Section Mentions / Filières */}
+        <section className="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <FaUniversity className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Mentions / Filières
+              </h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              Ajoutez ou gérez les filières proposées dans votre établissement.
+            </p>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <section className="bg-white p-6 rounded-2xl shadow-md transition hover:shadow-lg">
-          <h2 className="text-2xl font-semibold text-indigo-700 flex items-center gap-2 mb-2">
-            <FaUniversity />
-            &nbsp; Mentions/Filieres
-          </h2>
-          <p className="text-gray-500 mb-4 text-sm">
-            Ajoutez ou modifiez les filières proposées dans votre établissement
-            (ex: Informatique, Droit, Gestion...).
-          </p>
-          <form
-            onSubmit={handleSaveMention}
-            className="flex flex-col sm:flex-row gap-3 mb-4"
-          >
-            <input
-              type="text"
-              name="nomMention"
-              value={nomMention}
-              onChange={(e) => setnomMention(e.target.value)}
-              placeholder="Nouvelle mention"
-              className="flex-1 border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-            <button
-              type="submit"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+            <form
+              onSubmit={handleSaveMention}
+              className="flex flex-col sm:flex-row gap-3 mb-6"
             >
-              Ajouter
-            </button>
-          </form>
+              <input
+                type="text"
+                name="nomMention"
+                value={nomMention}
+                onChange={(e) => setNomMention(e.target.value)}
+                placeholder="Ex: Informatique, Droit..."
+                className="flex-1 border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder-slate-400"
+              />
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all text-sm font-semibold shadow-sm cursor-pointer shrink-0"
+              >
+                <FiPlus className="w-4 h-4" />
+                Ajouter
+              </button>
+            </form>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white text-gray-800 border border-gray-200 rounded-lg">
-              <thead className="bg-indigo-100 text-left text-sm">
-                <tr>
-                  <th className="px-4 py-2">Nom du mention</th>
-
-                  <th className="px-4 py-2 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm divide-y divide-gray-200">
-                {mentions.length > 0 ? (
-                  mentions.map((mention) => (
-                    <tr key={mention.idMent} className="hover:bg-gray-50">
-                      <td className="px-4 py-2">{mention.nomMention}</td>
-                      <td className="px-4 py-2 text-right space-x-2">
-                        <button className="text-red-600 hover:underline text-sm">
-                          Supprimer
-                        </button>
-                      </td>
+            <div className="border border-slate-100 rounded-xl overflow-hidden">
+              <div className="max-h-[300px] overflow-y-auto">
+                <table className="min-w-full text-left border-collapse">
+                  <thead className="bg-slate-50 text-slate-400 font-semibold text-xs uppercase tracking-wider sticky top-0 border-b border-slate-100">
+                    <tr>
+                      <th className="px-4 py-3">Nom de la mention</th>
+                      <th className="px-4 py-3 text-right">Action</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="px-4 py-2 text-center" colSpan="2">
-                      Aucune mention disponible
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {mentions.length > 0 ? (
+                      mentions.map((mention) => (
+                        <tr
+                          key={mention.idMent}
+                          className="hover:bg-slate-50/60 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-medium text-slate-800">
+                            {mention.nomMention}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer">
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          className="text-center py-8 text-slate-400 italic"
+                          colSpan="2"
+                        >
+                          Aucune mention disponible
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="bg-white p-6 rounded-2xl shadow-md transition hover:shadow-lg">
-          <h2 className="text-2xl font-semibold text-indigo-700 flex items-center gap-2 mb-2">
-            <MdSchool />
-            &nbsp; Niveaux d'études
-          </h2>
-          <p className="text-gray-500 mb-4 text-sm">
-            Définissez les niveaux d’études associés à chaque mention (ex: L1
-            pour Informatique, L2 pour ICJ, etc).
-          </p>
+        {/* Section Niveaux d'études */}
+        <section className="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+                <MdSchool className="w-5 h-5" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Niveaux d'études
+              </h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              Définissez les niveaux d’études associés (ex: L1, L2, M1...).
+            </p>
 
-          <form
-            onSubmit={handleSaveNiveau}
-            className="flex flex-col sm:flex-row gap-3 mb-4"
-          >
-            <input
-              type="text"
-              name="intitule"
-              value={intitule}
-              onChange={(e) => setIntitule(e.target.value)}
-              placeholder="Nouvelle niveau"
-              className="flex-1 border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-            <button
-              type="submit"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+            <form
+              onSubmit={handleSaveNiveau}
+              className="flex flex-col sm:flex-row gap-3 mb-6"
             >
-              Ajouter
-            </button>
-          </form>
+              <input
+                type="text"
+                name="intitule"
+                value={intitule}
+                onChange={(e) => setIntitule(e.target.value)}
+                placeholder="Ex: L1, Master 2..."
+                className="flex-1 border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-sm text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder-slate-400"
+              />
+              <button
+                type="submit"
+                className="flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all text-sm font-semibold shadow-sm cursor-pointer shrink-0"
+              >
+                <FiPlus className="w-4 h-4" />
+                Ajouter
+              </button>
+            </form>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white text-gray-800 border border-gray-200 rounded-lg">
-              <thead className="bg-indigo-100 text-left text-sm">
-                <tr>
-                  <th className="px-4 py-2">Nom du niveau</th>
-
-                  <th className="px-4 py-2 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm divide-y divide-gray-200">
-                {niveaux.length > 0 ? (
-                  niveaux.map((niveau) => (
-                    <tr key={niveau.idNiv} className="hover:bg-gray-50">
-                      <td className="px-4 py-2">{niveau.intitule}</td>
-                      <td className="px-4 py-2 text-right space-x-2">
-                        <button className="text-red-600 hover:underline text-sm">
-                          Supprimer
-                        </button>
-                      </td>
+            <div className="border border-slate-100 rounded-xl overflow-hidden">
+              <div className="max-h-[300px] overflow-y-auto">
+                <table className="min-w-full text-left border-collapse">
+                  <thead className="bg-slate-50 text-slate-400 font-semibold text-xs uppercase tracking-wider sticky top-0 border-b border-slate-100">
+                    <tr>
+                      <th className="px-4 py-3">Intitulé du niveau</th>
+                      <th className="px-4 py-3 text-right">Action</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td className="px-4 py-2 text-center" colSpan="2">
-                      Aucune niveau disponible
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-sm">
+                    {niveaux.length > 0 ? (
+                      niveaux.map((niveau) => (
+                        <tr
+                          key={niveau.idNiv}
+                          className="hover:bg-slate-50/60 transition-colors"
+                        >
+                          <td className="px-4 py-3 font-medium text-slate-800">
+                            {niveau.intitule}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-colors cursor-pointer">
+                              <FiTrash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td
+                          className="text-center py-8 text-slate-400 italic"
+                          colSpan="2"
+                        >
+                          Aucun niveau disponible
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
 
-        <section className="bg-white p-6 rounded-2xl shadow-md transition hover:shadow-lg">
-          <h2 className="text-2xl font-semibold text-indigo-700 mb-2 flex items-center gap-2">
-            <FaRegCalendarAlt />
-            &nbsp; Années Scolaires
-          </h2>
-          <p className="text-gray-500 mb-6 text-sm">
+        {/* Section Années Scolaires */}
+        <section className="bg-white p-6 rounded-2xl shadow-xs border border-slate-100 lg:col-span-2">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
+              <FaRegCalendarAlt className="w-5 h-5" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">
+              Années Scolaires
+            </h2>
+          </div>
+          <p className="text-sm text-slate-500 mb-6">
             Gérez la liste des années scolaires disponibles. Une seule peut être
             active à la fois.
           </p>
 
-          <div className="mb-8">
-            <div className="flex gap-3">
+          <form
+            onSubmit={ajouterAnnee}
+            className="flex flex-col sm:flex-row gap-3 mb-8 bg-slate-50/60 p-4 rounded-xl border border-slate-100"
+          >
+            <div className="flex-1 space-y-1">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Année de début
+              </label>
               <select
                 name="debut"
                 value={anneeData.debut}
                 onChange={handleChange}
-                className="flex-1 border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               >
-                <option value="">-- Debut --</option>
-                {Array.from({ length: 50 }, (_, i) => {
-                  const year = 2000 + i;
+                <option value="">-- Début --</option>
+                {Array.from({ length: 30 }, (_, i) => {
+                  const year = 2020 + i;
                   return (
                     <option key={year} value={year}>
                       {year}
@@ -255,131 +335,74 @@ const Sector = () => {
                   );
                 })}
               </select>
+            </div>
 
-              <div className="flex gap-3">
-                <select
-                  name="fin"
-                  value={anneeData.fin}
-                  onChange={handleChange}
-                  className="flex-1 border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                >
-                  <option value="">-- Fin --</option>
-                  {Array.from({ length: 50 }, (_, i) => {
-                    const year = 2000 + i;
-                    return (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-
-              <button
-                onClick={ajouterAnnee}
-                className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
+            <div className="flex-1 space-y-1">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Année de fin
+              </label>
+              <select
+                name="fin"
+                value={anneeData.fin}
+                onChange={handleChange}
+                className="w-full border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
               >
-                Ajouter
+                <option value="">-- Fin --</option>
+                {Array.from({ length: 30 }, (_, i) => {
+                  const year = 2021 + i;
+                  return (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <div className="flex items-end">
+              <button
+                type="submit"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-all text-sm font-semibold shadow-sm cursor-pointer"
+              >
+                <FiPlus className="w-4 h-4" />
+                Ajouter l'année
               </button>
             </div>
-          </div>
+          </form>
 
-          <span className="text-gray-600 text-xl">
-            Liste des annees scolaires existants
-          </span>
+          <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">
+            Liste des années scolaires existantes
+          </h3>
 
-          <div className="space-y-4 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {annee.length > 0 ? (
-              annee.map((annee) => (
+              annee.map((item) => (
                 <div
-                  key={annee.idAnnee}
-                  className="flex justify-between items-center border p-3 rounded-lg hover:bg-gray-50"
+                  key={item.idAnnee}
+                  className="flex justify-between items-center bg-slate-50/50 border border-slate-100 p-4 rounded-xl hover:bg-slate-50 transition-colors"
                 >
-                  <span className="text-gray-800 font-medium">
-                    {annee.debut} - {annee.fin}
+                  <span className="text-slate-800 font-bold">
+                    {item.debut} - {item.fin}
                   </span>
 
                   <label className="inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={annee.status === "Active"}
-                      onChange={() => handleToggle(annee.idAnnee)}
+                      checked={item.status === "Active"}
+                      onChange={() => handleToggle(item.idAnnee)}
                       className="sr-only peer"
                     />
-                    <div className="relative w-11 h-6 bg-gray-200 rounded-full peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
+                    <div className="relative w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
               ))
             ) : (
-              <p className="text-gray-500">Aucune année scolaire disponible</p>
+              <p className="text-slate-400 italic col-span-full py-4 text-center">
+                Aucune année scolaire disponible
+              </p>
             )}
           </div>
         </section>
-
-        {/* <section className="bg-white p-4 rounded-lg shadow-md space-y-3">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-semibold text-indigo-700 flex items-center gap-2 mb-2">
-              <MdOutlineCalendarMonth />
-              &nbsp; Calendriers academiques
-            </h2>
-            <div className="flex gap-2">
-              <select className="border px-2 py-1 rounded text-sm">
-                <option value="">Filtrer par type</option>
-                <option value="cours">Cours</option>
-                <option value="vacances">Vacances</option>
-                <option value="examen">Examens</option>
-              </select>
-              <input type="date" className="border px-2 py-1 rounded text-sm" />
-            </div>
-          </div>
-
-          <div className="h-[400px] bg-gray-100 rounded-lg p-2 text-center text-gray-500">
-            <CalendrierInteractif />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <button className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">
-              Exporter PDF
-            </button>
-            <button className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
-              Exporter Excel
-            </button>
-          </div>
-
-          <div className="form-group">
-            <form className="space-y-3 bg-gray-50 p-4 rounded-lg shadow">
-              <h3 className="text-lg font-semibold text-indigo-700">
-                
-                Ajouter un événement
-              </h3>
-
-              <input
-                type="text"
-                placeholder="Nom de l’événement"
-                className="w-full border px-3 py-2 rounded"
-              />
-              <select className="w-full border px-3 py-2 rounded">
-                <option>Type d’événement</option>
-                <option value="cours">Début des cours</option>
-                <option value="examen">Examen</option>
-                <option value="vacances">Vacances</option>
-              </select>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  className="flex-1 border px-3 py-2 rounded"
-                />
-                <input
-                  type="date"
-                  className="flex-1 border px-3 py-2 rounded"
-                />
-              </div>
-              <button className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
-                Ajouter
-              </button>
-            </form>
-          </div>
-        </section> */}
       </div>
     </main>
   );

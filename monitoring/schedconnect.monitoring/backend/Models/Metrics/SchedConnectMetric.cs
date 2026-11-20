@@ -10,6 +10,8 @@ public class SchedConnectMetrics
 
     public DatabaseMetric Database { get; set; } = new();
 
+    public FrontendMetric Frontend { get; set; } = new();
+
     public List<EndpointMetric> Endpoints { get; set; } = [];
 
     public DateTime Timestamp { get; set; }

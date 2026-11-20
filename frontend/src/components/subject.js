@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { FiPlus, FiSearch } from "react-icons/fi";
+import {
+  FiPlus,
+  FiSearch,
+  FiChevronDown,
+  FiBookOpen,
+  FiClock,
+  FiAward,
+} from "react-icons/fi";
 import { FaEdit, FaTrashAlt } from "react-icons/fa";
 import SubjectForm from "./forms/subject-form";
 import Confirm from "./notification/confirm";
 import AlertInfo from "./notification/alert";
 import api from "../hooks/api";
-import { set } from "date-fns";
-import { tr } from "date-fns/locale";
 import { Loader } from "./spin/Spinner";
 import { can } from "../hooks/permission";
 import Swal from "sweetalert2";
-import Select from "react-select";
 
 const Subject = () => {
   const [matieres, setMatieres] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [expandedRows, setExpandedRows] = useState({});
 
   const loadSubject = () => {
     setLoading(true);
@@ -33,7 +38,7 @@ const Subject = () => {
       .finally(() => {
         setTimeout(() => {
           setLoading(false);
-        }, 1700);
+        }, 1200);
       });
   };
 
@@ -62,9 +67,7 @@ const Subject = () => {
   const [mentions, setMentions] = useState([]);
   const [niveaux, setNiveaux] = useState([]);
   const [enseignants, setEnseignants] = useState([]);
-
   const [searchfield, setSearchfield] = useState("");
-  const [selectedEnseignant, setSelectedEnseignant] = useState(null);
 
   const loadData = () => {
     api.get("/mention").then((res) => setMentions(res.data));
@@ -78,9 +81,48 @@ const Subject = () => {
     loadData();
   }, []);
 
+  const teachersWithSubjects = enseignants
+    .map((ens) => {
+      const fullName = `${ens.nom} ${ens.prenom}`;
+      const assignedSubjects = matieres.filter((mt) =>
+        mt.enseignants?.includes(fullName),
+      );
+      const initials =
+        `${ens.nom?.[0] || ""}${ens.prenom?.[0] || ""}`.toUpperCase();
+      return {
+        ...ens,
+        fullName,
+        initials,
+        subjects: assignedSubjects,
+      };
+    })
+    .filter((ens) => {
+      const matchesSearch =
+        ens.fullName.toLowerCase().includes(searchfield.toLowerCase()) ||
+        ens.subjects.some((s) =>
+          s.nomMat.toLowerCase().includes(searchfield.toLowerCase()),
+        );
+      return matchesSearch && ens.subjects.length > 0;
+    });
+
+  useEffect(() => {
+    if (teachersWithSubjects.length > 0) {
+      setExpandedRows({
+        [teachersWithSubjects[0].id]: true,
+      });
+    } else {
+      setExpandedRows({});
+    }
+  }, [matieres, enseignants, searchfield]);
+
+  const toggleRow = (teacherId) => {
+    setExpandedRows((prev) => ({
+      [teacherId]: !prev[teacherId],
+    }));
+  };
+
   const handleChange = (e) => {
     const { name, value, multiple, selectedOptions } = e.target;
-
     let finalValue;
 
     if (multiple) {
@@ -99,7 +141,7 @@ const Subject = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      api.post("/matiere", formData).then((rep) => {
+      api.post("/matiere", formData).then(() => {
         loadSubject();
         setFormData({
           id: "",
@@ -119,22 +161,17 @@ const Subject = () => {
         setShowModal(false);
       });
     } catch (error) {
-      console.error("Erreur d'envoie des donnees: ", error.message);
+      console.error("Erreur d'envoi des données: ", error.message);
     }
   };
 
   const handleUpdate = (e) => {
     e.preventDefault();
-    if (!formData.id) {
-      console.error(
-        "Identifiant de la matiere est manquante pour la mise à jour",
-      );
-      return;
-    }
+    if (!formData.id) return;
     api
       .put(`/matiere/${formData.id}`, formData)
-      .then((res) => {
-        loadData();
+      .then(() => {
+        loadSubject();
         setFormData({
           id: "",
           nomMat: "",
@@ -161,9 +198,9 @@ const Subject = () => {
       nomMat: sub.nomMat,
       nbH: sub.nbH,
       coeff: sub.coeff,
-      enseignantId: sub.id,
-      mentionId: sub.mentionId,
-      niveauId: sub.niveauId,
+      enseignantId: sub.enseignantId || "",
+      mentionId: sub.mentionId || [],
+      niveauId: sub.niveauId || [],
     });
     setShowModalEdit(true);
   };
@@ -185,68 +222,24 @@ const Subject = () => {
           confirmButtonText: "OK",
         });
       })
-      .catch((err) => {
-        console.error("Erreur: ", err.message);
-      })
-      .finally(() => {
-        setConfirmDelete(false);
-      });
+      .catch((err) => console.error("Erreur: ", err.message))
+      .finally(() => setConfirmDelete(false));
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowAlert(false);
-    }, 1500);
-    return () => timer;
-  }, [alert]);
-
-  const enseignantOptions = enseignants.map((ens) => ({
-    value: `${ens.nom} ${ens.prenom}`,
-    label: `${ens.nom} ${ens.prenom}`,
-  }));
-
-  const filteredMatieres = matieres.filter((mt) => {
-    const matchSearch = (
-      mt.nomMat +
-      " " +
-      mt.nbH +
-      " " +
-      mt.coeff +
-      " " +
-      mt.mention
-    )
-      .toLowerCase()
-      .includes(searchfield.toLowerCase());
-
-    const matchEnseignant = selectedEnseignant
-      ? mt.enseignants?.includes(selectedEnseignant.value)
-      : true;
-
-    return matchSearch && matchEnseignant;
-  });
-
-  const handleEnseignantChange = (selected) => {
-    setSelectedEnseignant(selected);
-  };
   const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     api
       .get("/user/profile")
-      .then((rep) => {
-        setUserRole(rep.data.userRole);
-      })
-      .catch(() => {
-        setUserRole(null);
-      });
+      .then((rep) => setUserRole(rep.data.userRole))
+      .catch(() => setUserRole(null));
   }, []);
 
   return (
-    <div className="subject-container h-screen">
+    <div className="subject-container min-h-screen p-6 md:p-8 bg-slate-50/70 font-sans">
       {showAlert && alert && (
         <AlertInfo alert={alert} setShowAlert={setShowAlert} />
       )}
-
       {confirmDelete && (
         <Confirm
           handleDelete={handleDelete}
@@ -254,59 +247,46 @@ const Subject = () => {
         />
       )}
 
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-semibold text-gray-800">
-          {userRole === "Admin" ? "Gestion des matieres" : "Liste des matieres"}
-        </h2>
+      {/* En-tête de la page */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-slate-100 mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-800">
+            {userRole === "Admin"
+              ? "Gestion des matières"
+              : "Liste des matières"}
+          </h2>
+          <p className="text-base text-slate-500 mt-1.5">
+            Organisez et consultez les attributions de cours par enseignant.
+          </p>
+        </div>
 
-        <div className="w-full max-w-md">
-          <label className="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">
-            Recherche
-          </label>
+        <div className="w-full md:w-80">
           <div className="relative">
-            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-              <FiSearch className="w-5 h-5 text-gray-500" />
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+              <FiSearch className="w-4 h-4 text-slate-400" />
             </div>
             <input
               type="search"
               value={searchfield}
               onChange={(e) => setSearchfield(e.target.value)}
-              className="w-full border border-gray-300 p-4 ps-10 text-sm text-gray-900 rounded-lg bg-white rounded-md focus:outline-none focus:ring focus:ring-blue-400"
-              placeholder="Recherche"
-              required
+              className="w-full border border-slate-200 bg-white py-2.5 ps-10 pe-4 text-sm text-slate-800 rounded-xl shadow-xs transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              placeholder="Rechercher..."
             />
-            <button
-              type="button"
-              className="text-white absolute end-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-            >
-              Aller
-            </button>
           </div>
         </div>
       </div>
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-        {can(userRole === "Admin" ? "admin" : "secretary", "add") && (
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:scale-[1.02] hover:shadow-lg active:scale-95"
-            >
-              <FiPlus className="w-5 h-5 text-white" />
-              <span>Nouveau</span>
-            </button>
-          </div>
-        )}
 
-        <div className="search-group flex items-center justify-between gap-4">
-          <Select
-            className="w-80"
-            options={enseignantOptions}
-            placeholder="Filtre par enseignant"
-            value={selectedEnseignant}
-            onChange={handleEnseignantChange}
-            isClearable
-          />
-        </div>
+      {/* Bouton d'ajout */}
+      <div className="flex items-center justify-end mb-6">
+        {can(userRole === "Admin" ? "admin" : "secretary", "add") && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-95"
+          >
+            <FiPlus className="w-4 h-4" />
+            <span>Nouvelle matière</span>
+          </button>
+        )}
       </div>
 
       {showModal && (
@@ -335,96 +315,143 @@ const Subject = () => {
         />
       )}
 
-      <div className="shadow rounded-lg mt-6">
-        <div className="overflow-x-auto">
-          <div className="max-h-[800px] overflow-y-auto">
-            <table className="min-w-full bg-white text-gray-700 table-fixed">
-              <thead className="bg-indigo-100 text-left font-semibold sticky top-0 z-0">
-                <tr>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">#</th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    MATIERE
-                  </th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">EC</th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    COEFFICIENT
-                  </th>
-
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    CLASSE
-                  </th>
-                  {can(
-                    userRole === "Admin" ? "admin" : "secretary",
-                    "edit",
-                  ) && (
-                    <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                      ACTIONS
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6}>
-                      <Loader />
-                    </td>
-                  </tr>
-                ) : filteredMatieres.length > 0 ? (
-                  filteredMatieres.map((mat, index) => (
-                    <tr key={index} className="border-t hover:bg-gray-50">
-                      <td className="px-4 py-3">{index + 1}</td>
-                      <td className="px-4 py-3">{mat.nomMat}</td>
-                      <td className="px-4 py-3">{mat.nbH} Heures</td>
-                      <td className="px-4 py-3">{mat.coeff}</td>
-
-                      <td className="px-4 py-3">
-                        {mat.mention.map((m, i) => (
-                          <div key={i}>
-                            <span className="font-semibold">{m}</span>
-                            <span className="text-gray-600">
-                              {" "}
-                              ({mat.niveau.join(", ")})
-                            </span>
-                          </div>
-                        ))}
-                      </td>
-
-                      {can(
-                        userRole === "Admin" ? "admin" : "secretary",
-                        "edit",
-                      ) && (
-                        <td className="px-4 py-3">
-                          <button
-                            className="text-blue-600 text-sm"
-                            onClick={() => openModalEdit(mat)}
-                          >
-                            <FaEdit className="inline-block w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => askDelete(mat.id)}
-                            className="text-red-600 text-sm ml-4"
-                          >
-                            <FaTrashAlt className="inline-block w-5 h-5" />
-                          </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="8"
-                      className="text-center px-6 py-4 text-gray-500"
-                    >
-                      Aucun matieres trouvé.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+      {/* Liste des cartes d'enseignants */}
+      <div className="space-y-5">
+        {loading ? (
+          <div className="flex justify-center items-center py-24 bg-white rounded-3xl border border-slate-100 shadow-xs">
+            <Loader />
           </div>
-        </div>
+        ) : teachersWithSubjects.length > 0 ? (
+          teachersWithSubjects.map((teacher) => {
+            const isOpen = !!expandedRows[teacher.id];
+            return (
+              <div
+                key={teacher.id}
+                className={`bg-white rounded-3xl border transition-all duration-200 overflow-hidden ${
+                  isOpen
+                    ? "border-indigo-200 shadow-lg ring-4 ring-indigo-50/50"
+                    : "border-slate-200/80 shadow-xs hover:border-slate-300"
+                }`}
+              >
+                {/* Ligne Enseignant */}
+                <div
+                  onClick={() => toggleRow(teacher.id)}
+                  className="flex items-center justify-between p-6 cursor-pointer select-none bg-white hover:bg-slate-50/60 transition-colors"
+                >
+                  <div className="flex items-center gap-5">
+                    {/* Avatar initiales */}
+                    <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg tracking-wide">
+                      {teacher.initials || "PR"}
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-slate-900 text-lg">
+                        {teacher.fullName}
+                      </h3>
+                      <p className="text-sm font-medium text-slate-400 mt-0.5">
+                        {teacher.grade}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <span className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-50/80 rounded-full border border-indigo-100/50">
+                      <FiBookOpen className="w-4 h-4" />
+                      {teacher.subjects.length} cours dispensé
+                      {teacher.subjects.length > 1 ? "s" : ""}
+                    </span>
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-transform duration-200 ${isOpen ? "bg-indigo-100 text-indigo-700 rotate-180" : "bg-slate-100 text-slate-500"}`}
+                    >
+                      <FiChevronDown className="w-5 h-5" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Dropdown (Grid élargie) */}
+                {isOpen && (
+                  <div className="border-t border-slate-100 bg-slate-50/50 p-6 md:p-8 animate-fadeIn">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {teacher.subjects.map((mat) => (
+                        <div
+                          key={mat.id}
+                          className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between gap-4 hover:border-indigo-200 hover:shadow-md transition-all group"
+                        >
+                          <div>
+                            <div className="flex justify-between items-start gap-3">
+                              <h4 className="font-bold text-slate-900 text-base tracking-tight group-hover:text-indigo-600 transition-colors">
+                                {mat.nomMat}
+                              </h4>
+                              {can(
+                                userRole === "Admin" ? "admin" : "secretary",
+                                "edit",
+                              ) && (
+                                <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openModalEdit(mat);
+                                    }}
+                                    title="Modifier"
+                                  >
+                                    <FaEdit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      askDelete(mat.id);
+                                    }}
+                                    className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                                    title="Supprimer"
+                                  >
+                                    <FaTrashAlt className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Badges métriques agrandis */}
+                            <div className="flex flex-wrap items-center gap-2.5 mt-4">
+                              <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-sm px-3 py-1.5 rounded-lg font-medium">
+                                <FiClock className="w-4 h-4 text-slate-400" />{" "}
+                                {mat.nbH}h
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-sm px-3 py-1.5 rounded-lg font-medium">
+                                <FiAward className="w-4 h-4 text-slate-400" />{" "}
+                                Coeff {mat.coeff}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Classes associées */}
+                          <div className="text-sm text-slate-500 pt-3.5 border-t border-slate-100 flex items-center gap-1.5">
+                            <span className="font-medium text-slate-400">
+                              Classe :
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {mat.mention?.map((m, i) => (
+                                <span
+                                  key={i}
+                                  className="font-semibold text-slate-800"
+                                >
+                                  {m} ({mat.niveau?.join(", ")})
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-center py-20 bg-white rounded-3xl border border-slate-200 text-slate-400 text-lg">
+            Aucun enseignant ou matière correspondant n'a été trouvé.
+          </div>
+        )}
       </div>
     </div>
   );

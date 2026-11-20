@@ -8,6 +8,24 @@ using SchedConnect.Monitoring.Services.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var corsOrigins = builder.Configuration["Cors:Origins"]?
+    .Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+    ?? Array.Empty<string>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        if (corsOrigins.Length > 0)
+        {
+            policy.WithOrigins(corsOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+    });
+});
+
 builder.Services.AddControllers();
 
 builder.Services.Configure<PrometheusOptions>(
@@ -37,6 +55,7 @@ builder.Services.AddScoped<IAIAnalysisService, AIAnalysisService>();
 var app = builder.Build();
 
 app.UseHttpsRedirection();
+app.UseCors("AllowFrontend");
 
 app.MapControllers();
 

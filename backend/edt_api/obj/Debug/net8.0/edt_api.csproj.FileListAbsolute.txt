@@ -233,7 +233,6 @@
 /home/juliannot/Desktop/Project/schedule-management/backend/edt_api/bin/Debug/net8.0/Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 /home/juliannot/Desktop/Project/schedule-management/backend/edt_api/bin/Debug/net8.0/Microsoft.IdentityModel.Tokens.dll
 /home/juliannot/Desktop/Project/schedule-management/backend/edt_api/bin/Debug/net8.0/System.IdentityModel.Tokens.Jwt.dll
-/home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/appsettings.Development.json
 /home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/appsettings.json
 /home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/edt_api
 /home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/edt_api.deps.json
@@ -596,3 +595,6 @@
 /media/julianot/DATA/Projects/schedule-management/backend/edt_api/obj/Debug/net8.0/edt_api.genruntimeconfig.cache
 /media/julianot/DATA/Projects/schedule-management/backend/edt_api/obj/Debug/net8.0/ref/edt_api.dll
 /home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/appsettings.copy.json
+/home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/appsettings.docker.json
+/home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/Prometheus.NetStandard.dll
+/home/julianot/Desktop/Projects/schedule-management/backend/edt_api/bin/Debug/net8.0/Prometheus.AspNetCore.dll

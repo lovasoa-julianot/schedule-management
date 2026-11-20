@@ -4,6 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import api from "../../hooks/api";
 import Logo from "../../assets/calendar.png";
 import Office from "../../assets/espace-de-travail.png";
+import { Mail, Lock, ArrowLeft } from "lucide-react";
 
 export default function ForgotPassword() {
   const [form, setForm] = useState({
@@ -12,7 +13,6 @@ export default function ForgotPassword() {
     confirmPassword: "",
   });
   const [emailVerified, setEmailVerified] = useState(false);
-  const [userName, setUserName] = useState("");
   const [loading, setLoading] = useState(false);
   const [isFirstLogin, setIsFirstLogin] = useState(false);
 
@@ -54,26 +54,24 @@ export default function ForgotPassword() {
 
     setLoading(true);
     try {
-      const response = await api.post("/auth/verify-email", {
+      const response = await api.post("/auth/verify", {
         email: form.email,
       });
 
       if (response.data.success) {
-        setUserName(response.data.user.name || "Utilisateur");
         setEmailVerified(true);
-
         if (isFirstLogin) {
           Swal.fire({
             icon: "success",
             title: "Email vérifié",
-            text: `Bienvenue ${response.data.user.name} ! Veuillez créer votre mot de passe pour activer votre compte.`,
+            text: "Bienvenue ! Veuillez créer votre mot de passe pour activer votre compte.",
             backdrop: "rgba(0,0,0,0.4)",
           });
         } else {
           Swal.fire({
             icon: "success",
             title: "Email vérifié",
-            text: `Ravis de vous voir ${response.data.user.name}, vous pouvez maintenant réinitialiser votre mot de passe.`,
+            text: `Ravis de vous voir ${response.data.user.name || ""}, vous pouvez maintenant réinitialiser votre mot de passe.`,
             backdrop: "rgba(0,0,0,0.4)",
           });
         }
@@ -185,147 +183,100 @@ export default function ForgotPassword() {
     }
   };
 
-  const pageTitle = isFirstLogin
-    ? "Activation de compte"
-    : "Réinitialisation mot de passe";
-  const formTitle = emailVerified
-    ? isFirstLogin
-      ? "Créer votre mot de passe"
-      : "Nouveau mot de passe"
-    : isFirstLogin
-      ? "Vérification de compte"
-      : "Mot de passe oublié";
-
-  const buttonText = emailVerified
-    ? isFirstLogin
-      ? "Activer mon compte"
-      : "Réinitialiser mon mot de passe"
-    : isFirstLogin
-      ? "Vérifier mon compte"
-      : "Vérifier mon email";
+  const pageTitle = isFirstLogin ? "Activation de compte" : "Réinitialisation";
 
   return (
-    <div className="flex items-center justify-center min-h-screen animate-gradientBG">
-      <div className="flex w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl">
-        <div className="flex w-full md:w-1/2 items-center justify-center bg-slate-100 p-10">
+    <div className="flex items-center justify-center min-h-screen bg-slate-900 px-4">
+      <div className="flex w-full max-w-4xl bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-100">
+        {/* Formulaire GAUCHE */}
+        <div className="flex w-full md:w-1/2 items-center justify-center p-8 sm:p-12">
           <div className="w-full max-w-md">
             <div className="flex flex-col items-center mb-6">
-              <img src={Logo} className="w-32 h-32 mb-2 text-white" />
-              <span className="text-[#333333] font-bold text-3xl">
+              <img
+                src={Logo}
+                alt="SchedConnect"
+                className="w-16 h-16 mb-2 object-contain"
+              />
+              <span className="text-slate-900 font-extrabold text-2xl tracking-tight">
                 Sched<span className="text-blue-600">Connect</span>
               </span>
+              <h2 className="text-sm font-semibold text-slate-500 mt-2">
+                {pageTitle}
+              </h2>
             </div>
 
-            <h2 className="text-xl font-semibold text-center text-[#333333] mb-4">
-              {pageTitle}
-            </h2>
-
             {!emailVerified ? (
-              <form onSubmit={handleVerifyEmail} className="space-y-5">
-                <div className="mb-6">
-                  <label className="block mb-2 text-sm font-medium text-[#333333] ">
-                    -- Email --
+              <form onSubmit={handleVerifyEmail} className="space-y-4">
+                <div>
+                  <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Adresse Email
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
-                      <svg
-                        className="w-4 h-4 text-gray-500 dark:text-gray-400"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 20 16"
-                      >
-                        <path d="m10.036 8.278 9.258-7.79A1.979 1.979 0 0 0 18 0H2A1.987 1.987 0 0 0 .641.541l9.395 7.737Z" />
-                        <path d="M11.241 9.817c-.36.275-.801.425-1.255.427-.428 0-.845-.138-1.187-.395L0 2.6V14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2.5l-8.759 7.317Z" />
-                      </svg>
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none text-slate-400">
+                      <Mail className="w-4 h-4" />
                     </div>
                     <input
                       type="email"
                       name="email"
                       value={form.email}
                       onChange={handleChange}
-                      id="email-address-icon"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5"
+                      required
+                      className="bg-slate-50/50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 block w-full ps-10 p-3 transition-all"
                       placeholder="exemple@gmail.com"
                     />
                   </div>
                 </div>
 
-                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-700">
-                    <span className="font-medium">Note :</span>
+                <div className="p-3.5 bg-blue-50/60 border border-blue-100 rounded-2xl">
+                  <p className="text-xs text-blue-700 leading-relaxed">
+                    <span className="font-bold">Information : </span>
                     {isFirstLogin
-                      ? "Veuillez saisir votre email pour activer votre compte et créer votre mot de passe."
-                      : "Veuillez saisir votre email pour vérifier votre identité et réinitialiser votre mot de passe."}
+                      ? "Saisissez l'email fourni par votre administrateur pour activer votre accès."
+                      : "Saisissez votre email enregistré pour recevoir les instructions de réinitialisation."}
                   </p>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full text-[#F2EDE8] font-semibold bg-blue-600 hover:bg-blue-700 rounded-lg text-sm px-5 py-2.5 text-center transition"
+                  className="w-full text-white font-semibold bg-blue-600 hover:bg-blue-700 rounded-xl text-sm py-3 text-center shadow-lg shadow-blue-600/30 transition cursor-pointer disabled:opacity-50"
                 >
                   {loading
-                    ? isFirstLogin
-                      ? "Vérification..."
-                      : "Vérification..."
-                    : buttonText}
+                    ? "Vérification..."
+                    : isFirstLogin
+                      ? "Vérifier mon compte"
+                      : "Vérifier mon email"}
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleResetPassword} className="space-y-5">
-                <div className="mb-6">
-                  <label className="block mb-2 text-sm font-medium text-[#333333] ">
-                    -- Email --
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                  <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Adresse Email
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
-                      <svg
-                        className="w-4 h-4 text-gray-500 dark:text-gray-400"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 20 16"
-                      >
-                        <path d="m10.036 8.278 9.258-7.79A1.979 1.979 0 0 0 18 0H2A1.987 1.987 0 0 0 .641.541l9.395 7.737Z" />
-                        <path d="M11.241 9.817c-.36.275-.801.425-1.255.427-.428 0-.845-.138-1.187-.395L0 2.6V14a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2.5l-8.759 7.317Z" />
-                      </svg>
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none text-slate-400">
+                      <Mail className="w-4 h-4" />
                     </div>
                     <input
                       type="email"
                       name="email"
                       value={form.email}
-                      onChange={handleChange}
-                      id="email-address-icon"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5"
-                      placeholder="exemple@gmail.com"
+                      disabled
+                      className="bg-slate-100 border border-slate-200 text-slate-500 text-sm rounded-xl block w-full ps-10 p-3 cursor-not-allowed"
                     />
                   </div>
                 </div>
 
-                <div className="mb-6">
-                  <label className="block mb-1 text-gray-600">
-                    --{" "}
+                <div>
+                  <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
                     {isFirstLogin
                       ? "Créer un mot de passe"
-                      : "Nouveau mot de passe"}{" "}
-                    --
+                      : "Nouveau mot de passe"}
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
-                      <svg
-                        className="w-4 h-4 text-gray-500 dark:text-gray-400"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5Zm3 8V6a3 3 0 1 0-6 0v3h6Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
                     </div>
                     <input
                       type="password"
@@ -334,35 +285,22 @@ export default function ForgotPassword() {
                       onChange={handleChange}
                       disabled={loading}
                       required
-                      placeholder="********"
-                      id="email-address-icon"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  "
+                      placeholder="••••••••"
+                      className="bg-slate-50/50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 block w-full ps-10 p-3 transition-all"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Minimum 6 caractères
-                    </p>
                   </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Minimum 6 caractères
+                  </p>
                 </div>
 
-                <div className="mb-6">
-                  <label className="block mb-1 text-gray-600">
-                    -- Confirmer le mot de passe --
+                <div>
+                  <label className="block mb-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Confirmer le mot de passe
                   </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
-                      <svg
-                        className="w-4 h-4 text-gray-500 dark:text-gray-400"
-                        aria-hidden="true"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5Zm3 8V6a3 3 0 1 0-6 0v3h6Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                    <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
                     </div>
                     <input
                       type="password"
@@ -371,26 +309,22 @@ export default function ForgotPassword() {
                       onChange={handleChange}
                       disabled={loading}
                       required
-                      placeholder="********"
-                      id="email-address-icon"
-                      className="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  "
+                      placeholder="••••••••"
+                      className="bg-slate-50/50 border border-slate-200 text-slate-800 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 block w-full ps-10 p-3 transition-all"
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Minimum 6 caractères
-                    </p>
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full text-[#F2EDE8] font-semibold bg-blue-600 hover:bg-blue-700 rounded-lg text-sm px-5 py-2.5 text-center transition"
+                  className="w-full text-white font-semibold bg-blue-600 hover:bg-blue-700 rounded-xl text-sm py-3 text-center shadow-lg shadow-blue-600/30 transition cursor-pointer disabled:opacity-50"
                 >
                   {loading
-                    ? isFirstLogin
-                      ? "Activation..."
-                      : "Réinitialisation..."
-                    : buttonText}
+                    ? "Traitement..."
+                    : isFirstLogin
+                      ? "Activer mon compte"
+                      : "Réinitialiser"}
                 </button>
 
                 <button
@@ -398,16 +332,17 @@ export default function ForgotPassword() {
                   onClick={() => {
                     setEmailVerified(false);
                     setForm({ email: "", password: "", confirmPassword: "" });
-                    setUserName("");
                   }}
                   disabled={loading}
-                  className="w-full py-2 border border-[#7A0000] text-[#7A0000] font-semibold rounded-lg hover:bg-[#7A0000]/5 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2.5 border border-slate-200 text-slate-600 font-semibold text-sm rounded-xl hover:bg-slate-50 transition cursor-pointer flex items-center justify-center gap-2"
                 >
+                  <ArrowLeft className="w-4 h-4" />
                   Retour
                 </button>
               </form>
             )}
-            <p className="mt-4 text-center text-[#333333]">
+
+            <p className="mt-6 text-center text-xs text-slate-500">
               {isFirstLogin ? "Déjà un compte ? " : "Retour à la "}
               <Link
                 to="/login"
@@ -419,9 +354,23 @@ export default function ForgotPassword() {
           </div>
         </div>
 
-        <div className="hidden md:flex w-1/2 bg-blue-700 relative justify-center items-center">
-          <img src={Office} className="w-80 h-80" />
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-20 h-1 bg-white/70 rounded-full" />
+        {/* Visuel DROITE */}
+        <div className="hidden md:flex w-1/2 bg-gradient-to-br from-slate-900 to-[#0f172a] relative justify-center items-center p-12">
+          <div className="absolute inset-0 bg-blue-600/10 backdrop-blur-3xl"></div>
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <img
+              src={Office}
+              alt="Workspace"
+              className="w-64 h-64 object-contain drop-shadow-2xl mb-6"
+            />
+            <h3 className="text-white font-bold text-lg">
+              Sécurité et Accès Simplifiés
+            </h3>
+            <p className="text-slate-400 text-xs mt-2 max-w-xs">
+              Gérez l'activation de vos accès administratifs et récupérez votre
+              compte en toute sécurité.
+            </p>
+          </div>
         </div>
       </div>
     </div>

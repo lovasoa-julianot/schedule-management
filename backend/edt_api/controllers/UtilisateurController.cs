@@ -81,6 +81,17 @@ public class UtilisateurController : ControllerBase
         }
         return CreatedAtAction(nameof(GetById), new { id = created.id }, created);
     }
+
+    [HttpPost("auth/verify")]
+    public async Task<ActionResult> checkEmailUser([FromBody] string email)
+    {
+        var created = await _service.checkEmailResponsable(email);
+        if (!created)
+        {
+            return NotFound(new {message= $"Email {email} est introuvable dans le systeme."});
+        }
+        return Ok(new {email});
+    }
     
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginDto dto)

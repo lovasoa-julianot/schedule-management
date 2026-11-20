@@ -12,8 +12,8 @@ import Swal from "sweetalert2";
 const ClassRoom = () => {
   const [salles, setSalles] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filtered, setFiltered] = useState([]);
 
-  const [fileterd, setFiltered] = useState([]);
   const [formData, setFormData] = useState({
     id: "",
     nomsalle: "",
@@ -34,7 +34,7 @@ const ClassRoom = () => {
       .finally(() => {
         setTimeout(() => {
           setLoading(false);
-        }, 1700);
+        }, 800);
       });
   };
 
@@ -44,7 +44,7 @@ const ClassRoom = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [showModalEdit, setShowModalEdit] = useState(false);
-  const [searchfield, setSearchfiled] = useState("");
+  const [searchfield, setSearchfield] = useState("");
 
   const [alert, setAlert] = useState("");
   const [showAlert, setShowAlert] = useState(false);
@@ -52,6 +52,17 @@ const ClassRoom = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
+  };
+
+  const openModal = () => {
+    setFormData({
+      id: "",
+      nomsalle: "",
+      typesalle: "",
+      capacite: "",
+      localisation: "",
+    });
+    setShowModal(true);
   };
 
   const openModalEdit = (sl) => {
@@ -69,7 +80,7 @@ const ClassRoom = () => {
     e.preventDefault();
     api
       .post("/salle", formData)
-      .then((res) => {
+      .then(() => {
         loadData();
         setFormData({
           id: "",
@@ -92,12 +103,12 @@ const ClassRoom = () => {
   const handleUpdate = (e) => {
     e.preventDefault();
     if (!formData.id) {
-      console.error("ID de l'enseignant manquant pour la mise à jour");
+      console.error("ID de la salle manquant pour la mise à jour");
       return;
     }
     api
       .put(`/salle/${formData.id}`, formData)
-      .then((res) => {
+      .then(() => {
         loadData();
         setFormData({
           id: "",
@@ -145,22 +156,16 @@ const ClassRoom = () => {
       });
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowAlert(false);
-    }, 1500);
-    return () => timer;
-  }, [alert]);
-
+  // Filtrage réactif
   const filter = salles.filter((sl) =>
     (
-      sl.nomsalle +
+      (sl.nomsalle || "") +
       " " +
-      sl.typesalle +
+      (sl.typesalle || "") +
       " " +
-      sl.capacite +
+      (sl.capacite || "") +
       " " +
-      sl.localisation
+      (sl.localisation || "")
     )
       .toLowerCase()
       .includes(searchfield.toLowerCase()),
@@ -180,7 +185,7 @@ const ClassRoom = () => {
   }, []);
 
   return (
-    <div className="classroom-container h-screen">
+    <div className="classroom-container min-h-screen p-6 md:p-8 bg-slate-50/70 font-sans">
       {showAlert && alert && (
         <AlertInfo alert={alert} setShowAlert={setShowAlert} />
       )}
@@ -192,45 +197,44 @@ const ClassRoom = () => {
         />
       )}
 
-      <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-semibold text-gray-800">
-          {userRole === "Admin" ? "Gestion des salles" : "Liste des salles"}
-        </h2>
+      {/* En-tête de la page */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-2xl shadow-xs border border-slate-100 mb-6">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">
+            {userRole === "Admin" ? "Gestion des salles" : "Liste des salles"}
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">
+            Consultez et gérez les amphithéâtres, salles de cours et
+            laboratoires.
+          </p>
+        </div>
 
-        <div className="w-full max-w-md">
-          <label className="mb-2 text-sm font-medium text-gray-900 sr-only dark:text-white">
-            Recherche
-          </label>
+        {/* Barre de recherche moderne */}
+        <div className="w-full md:w-80">
           <div className="relative">
-            <div className="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-              <FiSearch className="w-5 h-5 text-gray-500" />
+            <div className="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+              <FiSearch className="w-4 h-4 text-slate-400" />
             </div>
             <input
               type="search"
               value={searchfield}
-              onChange={(e) => setSearchfiled(e.target.value)}
-              className="w-full border border-gray-300 p-4 ps-10 text-sm text-gray-900 rounded-lg bg-white rounded-md focus:outline-none focus:ring focus:ring-blue-400"
-              placeholder="Recherche"
-              required
+              onChange={(e) => setSearchfield(e.target.value)}
+              className="w-full border border-slate-200 bg-white py-2.5 ps-10 pe-4 text-sm text-slate-800 rounded-xl shadow-xs transition-all focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              placeholder="Rechercher une salle..."
             />
-            <button
-              type="button"
-              className="text-white absolute end-2.5 bottom-2.5 bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-4 py-2 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
-            >
-              Aller
-            </button>
           </div>
         </div>
       </div>
 
+      {/* Bouton Nouveau */}
       {can(userRole === "Admin" ? "admin" : "secretary", "add") && (
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center justify-end mb-6">
           <button
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-blue-500 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:scale-[1.02] hover:shadow-lg active:scale-95"
+            onClick={openModal}
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-500/25 transition-all hover:scale-[1.02] active:scale-95"
           >
-            <FiPlus className="w-5 h-5 text-white" />
-            <span>Nouveau</span>
+            <FiPlus className="w-4 h-4" />
+            <span>Nouvelle salle</span>
           </button>
         </div>
       )}
@@ -250,87 +254,91 @@ const ClassRoom = () => {
           data={formData}
           handleChange={handleChange}
           handleSubmit={handleUpdate}
-          isEdit={false}
+          isEdit={true} // Corrigé ici
           setShowModal={setShowModalEdit}
         />
       )}
 
-      <div className="shadow rounded-lg mt-6">
+      {/* Tableau moderne type carte */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <div className="max-h-[800px] overflow-y-auto">
-            <table className="min-w-full bg-white text-gray-700 table-fixed">
-              <thead className="bg-indigo-100 text-left font-semibold sticky top-0 z-0">
+          <table className="min-w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 text-xs font-semibold uppercase tracking-wider">
+                <th className="px-5 py-3.5">#</th>
+                <th className="px-5 py-3.5">Nom de la salle</th>
+                <th className="px-5 py-3.5">Type</th>
+                <th className="px-5 py-3.5">Capacité</th>
+                <th className="px-5 py-3.5">Localisation</th>
+                {can(userRole === "Admin" ? "admin" : "secretary", "edit") && (
+                  <th className="px-5 py-3.5 text-end">Actions</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-sm text-slate-700">
+              {loading ? (
                 <tr>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">#</th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">NOM</th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">TYPE</th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    CAPACITE
-                  </th>
-                  <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                    LOCALISATION
-                  </th>
-
-                  {can(
-                    userRole === "Admin" ? "admin" : "secretary",
-                    "edit",
-                  ) && (
-                    <th className="px-4 py-3 sticky top-0 bg-indigo-100">
-                      ACTIONS
-                    </th>
-                  )}
+                  <td colSpan={6} className="py-20 text-center">
+                    <Loader />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan={6}>
-                      <Loader />
+              ) : filter.length > 0 ? (
+                filter.map((sl, index) => (
+                  <tr
+                    key={sl.idsalle || index}
+                    className="hover:bg-slate-50/60 transition-colors group"
+                  >
+                    <td className="px-5 py-4 font-medium text-slate-400">
+                      {index + 1}
                     </td>
-                  </tr>
-                ) : filter.length > 0 ? (
-                  filter.map((sl, index) => (
-                    <tr key={index} className="border-t hover:bg-gray-50">
-                      <td className="px-4 py-3">{index + 1}</td>
-                      <td className="px-4 py-3">{sl.nomsalle}</td>
-                      <td className="px-4 py-3">{sl.typesalle}</td>
-                      <td className="px-4 py-3">{sl.capacite}</td>
-                      <td className="px-4 py-3">{sl.localisation}</td>
-
-                      {can(
-                        userRole === "Admin" ? "admin" : "secretary",
-                        "edit",
-                      ) && (
-                        <td className="px-4 py-3">
+                    <td className="px-5 py-4 font-semibold text-slate-900">
+                      {sl.nomsalle}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
+                        {sl.typesalle}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 font-medium text-slate-800">
+                      {sl.capacite} places
+                    </td>
+                    <td className="px-5 py-4 text-slate-600">
+                      {sl.localisation}
+                    </td>
+                    {can(
+                      userRole === "Admin" ? "admin" : "secretary",
+                      "edit",
+                    ) && (
+                      <td className="px-5 py-4 text-end">
+                        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                           <button
-                            className="text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition"
                             onClick={() => openModalEdit(sl)}
+                            className="text-slate-400 hover:text-indigo-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                            title="Modifier"
                           >
-                            <FaEdit className="inline-block w-5 h-5" />
+                            <FaEdit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => askDelete(sl.idsalle)}
-                            className="text-red-600 ml-4 px-2 py-1 rounded hover:bg-red-100 transition"
+                            className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                            title="Supprimer"
                           >
-                            <FaTrashAlt className="inline-block w-5 h-5" />
+                            <FaTrashAlt className="w-4 h-4" />
                           </button>
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="6"
-                      className="text-center px-6 py-4 text-gray-500"
-                    >
-                      Aucun salle trouvé.
-                    </td>
+                        </div>
+                      </td>
+                    )}
                   </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="text-center py-16 text-slate-400">
+                    Aucune salle trouvée.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
